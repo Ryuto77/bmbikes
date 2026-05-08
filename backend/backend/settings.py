@@ -62,6 +62,12 @@ INSTALLED_APPS = [
     'transactions'
 ]
 
+SUPABASE_STORAGE_ENABLED = env_bool('SUPABASE_STORAGE_ENABLED', False)
+if SUPABASE_STORAGE_ENABLED:
+    if not find_spec('storages'):
+        raise ImproperlyConfigured('SUPABASE_STORAGE_ENABLED=True requires django-storages to be installed.')
+    INSTALLED_APPS.append('storages')
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'corsheaders.middleware.CorsMiddleware',
@@ -194,8 +200,6 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATIC_ROOT = os.getenv('DJANGO_STATIC_ROOT', BASE_DIR / 'staticfiles')
-if find_spec('whitenoise'):
-    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -204,6 +208,39 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 MEDIA_URL = os.getenv('DJANGO_MEDIA_URL', '/media/')
 MEDIA_ROOT = os.getenv('DJANGO_MEDIA_ROOT', BASE_DIR / 'media')
+
+if SUPABASE_STORAGE_ENABLED:
+    SUPABASE_STORAGE_BUCKET = os.getenv('SUPABASE_STORAGE_BUCKET', '').strip()
+    SUPABASE_STORAGE_REGION = os.getenv('SUPABASE_STORAGE_REGION', '').strip()
+    SUPABASE_STORAGE_S3_ENDPOINT = os.getenv('SUPABASE_STORAGE_S3_ENDPOINT', '').strip()
+    SUPABASE_STORAGE_PUBLIC_URL = os.getenv('SUPABASE_STORAGE_PUBLIC_URL', '').strip()
+    SUPABASE_STORAGE_ACCESS_KEY_ID = os.getenv('SUPABASE_STORAGE_ACCESS_KEY_ID', '').strip()
+    SUPABASE_STORAGE_SECRET_ACCESS_KEY = os.getenv('SUPABASE_STORAGE_SECRET_ACCESS_KEY', '').strip()
+    missing_storage_vars = [
+        name
+        for name, value in {
+            'SUPABASE_STORAGE_BUCKET': SUPABASE_STORAGE_BUCKET,
+            'SUPABASE_STORAGE_REGION': SUPABASE_STORAGE_REGION,
+            'SUPABASE_STORAGE_S3_ENDPOINT': SUPABASE_STORAGE_S3_ENDPOINT,
+            'SUPABASE_STORAGE_PUBLIC_URL': SUPABASE_STORAGE_PUBLIC_URL,
+            'SUPABASE_STORAGE_ACCESS_KEY_ID': SUPABASE_STORAGE_ACCESS_KEY_ID,
+            'SUPABASE_STORAGE_SECRET_ACCESS_KEY': SUPABASE_STORAGE_SECRET_ACCESS_KEY,
+        }.items()
+        if not value
+    ]
+    if missing_storage_vars:
+        raise ImproperlyConfigured(f'Missing required Supabase Storage settings: {", ".join(missing_storage_vars)}')
+    MEDIA_URL = SUPABASE_STORAGE_PUBLIC_URL.rstrip('/') + '/'
+
+staticfiles_backend = 'whitenoise.storage.CompressedManifestStaticFilesStorage' if find_spec('whitenoise') else 'django.contrib.staticfiles.storage.StaticFilesStorage'
+STORAGES = {
+    'default': {
+        'BACKEND': 'backend.storage_backends.SupabaseMediaStorage' if SUPABASE_STORAGE_ENABLED else 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': staticfiles_backend,
+    },
+}
 
 FRONTEND_BASE_URL = os.getenv('FRONTEND_BASE_URL', 'http://127.0.0.1:5173')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'Best Motors <no-reply@bestmotors.local>')

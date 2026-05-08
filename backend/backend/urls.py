@@ -47,6 +47,4 @@ urlpatterns = [
     path('api/auth/password-reset/', password_reset_request),
     path('api/auth/password-reset/confirm/', password_reset_confirm),
 ]
-
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

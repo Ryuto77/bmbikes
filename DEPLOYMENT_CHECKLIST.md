@@ -124,12 +124,31 @@ Your app stores:
 - gallery images/videos
 - uploaded documents
 
-For production you must use one of these:
+Recommended production setup: Supabase Storage via the S3-compatible endpoint.
 
-1. Render persistent disk mounted to `DJANGO_MEDIA_ROOT`
-2. External object storage later, such as S3/Cloudinary/Supabase Storage
+Code is already prepared for this. To enable it:
 
-If you skip this, uploaded files can disappear after redeploy or restart.
+1. In Supabase Storage, create a public bucket such as `media`
+2. Enable S3 access keys in Supabase Storage settings
+3. Add these backend env vars in Render:
+
+```env
+SUPABASE_STORAGE_ENABLED=True
+SUPABASE_STORAGE_BUCKET=media
+SUPABASE_STORAGE_REGION=ap-south-1
+SUPABASE_STORAGE_S3_ENDPOINT=https://your-project-ref.storage.supabase.co/storage/v1/s3
+SUPABASE_STORAGE_PUBLIC_URL=https://your-project-ref.supabase.co/storage/v1/object/public/media
+SUPABASE_STORAGE_ACCESS_KEY_ID=your-storage-access-key
+SUPABASE_STORAGE_SECRET_ACCESS_KEY=your-storage-secret-key
+```
+
+Important notes:
+
+- the bucket must be public if you want direct file URLs to work without signed URLs
+- existing local files in `backend/media/` are not auto-migrated
+- after enabling Supabase Storage, new uploads go to Supabase Storage automatically
+
+Fallback option if you do not use Supabase Storage: Render persistent disk mounted to `DJANGO_MEDIA_ROOT`.
 
 ## Domain DNS
 
