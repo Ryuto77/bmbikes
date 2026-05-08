@@ -1,0 +1,5 @@
+<svg width="160" height="96" viewBox="0 0 160 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="160" height="96" rx="12" fill="#050505"/>
+  <text x="15" y="68" font-family="Arial Black, Impact, sans-serif" font-size="58" font-weight="900" letter-spacing="-7" fill="none" stroke="#F7F2F2" stroke-width="5.5" stroke-linejoin="round">BM</text>
+  <path d="M113 35L139 13M139 13L142 34M139 13L119 15" stroke="#E33B43" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

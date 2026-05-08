@@ -1,0 +1,5 @@
+{
+  "python.defaultInterpreterPath": "e:\\Techolas\\Final Project\\env\\Scripts\\python.exe",
+  "python.pythonPath": "e:\\Techolas\\Final Project\\env\\Scripts\\python.exe",
+  "python.analysis.extraPaths": ["backend"]
+}

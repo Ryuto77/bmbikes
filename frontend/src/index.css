@@ -1,0 +1,330 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Bebas+Neue&display=swap');
+@import "tailwindcss";
+
+:root {
+  --accent: #d90429;
+  --accent-hover: #b8001f;
+  --accent-dim: rgba(217, 4, 41, 0.12);
+  --accent-glow: rgba(217, 4, 41, 0.25);
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --surface2: #f4f5f7;
+  --border: rgba(15, 23, 42, 0.12);
+  --border-accent: rgba(217, 4, 41, 0.4);
+  --text: #111111;
+  --text-muted: #52525b;
+  --text-dim: #71717a;
+  --success: #16a34a;
+  --danger: #d90429;
+  --sold-bg: rgba(22, 163, 74, 0.12);
+  --unsold-bg: rgba(217, 4, 41, 0.12);
+  --nav-bg: rgba(255, 255, 255, 0.9);
+  --vehicle-image-ratio: 6 / 4;
+}
+
+:root[data-theme="dark"] {
+  --bg: #050505;
+  --surface: #101010;
+  --surface2: #1a1a1a;
+  --border: rgba(255, 255, 255, 0.07);
+  --text: #f7f7f7;
+  --text-muted: #a1a1aa;
+  --text-dim: #d4d4d8;
+  --success: #22c55e;
+  --danger: #ff3b4f;
+  --sold-bg: rgba(34, 197, 94, 0.12);
+  --unsold-bg: rgba(217, 4, 41, 0.18);
+  --nav-bg: rgba(5, 5, 5, 0.9);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Outfit', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.bebas {
+  font-family: 'Bebas Neue', sans-serif;
+}
+
+.brand-lockup {
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.brand-mark-wrap {
+  width: 58px;
+  height: 36px;
+  border-radius: 8px;
+  overflow: hidden;
+  flex: 0 0 auto;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+}
+
+.brand-mark {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.brand-wordmark {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: 2.2px;
+  white-space: nowrap;
+}
+
+.brand-wordmark-hero {
+  font-size: 38px;
+  letter-spacing: 2px;
+}
+
+.brand-best {
+  color: var(--accent);
+}
+
+.brand-motors {
+  color: #fff;
+}
+
+:root:not([data-theme="dark"]) .brand-motors {
+  color: #111;
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--text-muted) 35%, transparent); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--text-muted) 55%, transparent); }
+
+.input-base {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 14px;
+  width: 100%;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+}
+
+.input-base:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+
+.input-base::placeholder {
+  color: var(--text-muted);
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+
+.btn-accent {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  border-radius: 10px;
+  padding: 10px 20px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+  font-family: 'Outfit', sans-serif;
+}
+
+.btn-accent:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px var(--accent-glow);
+}
+
+.btn-accent:disabled,
+.btn-ghost:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: 10px;
+  padding: 10px 20px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: 'Outfit', sans-serif;
+}
+
+.btn-ghost:hover:not(:disabled) {
+  border-color: var(--border-accent);
+  color: var(--text);
+  background: var(--accent-dim);
+}
+
+.menu-action {
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font-family: 'Outfit', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.menu-action:hover {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+@media (max-width: 900px) {
+  .dashboard-feature-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .dashboard-spotlight-card {
+    grid-template-columns: 1fr !important;
+  }
+
+  .admin-stock-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .admin-stock-grid > div:first-child {
+    position: static !important;
+  }
+
+  .stock-toolbar-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .login-page-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .reports-main-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .reports-summary-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .reports-chart-extra-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .reports-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .vehicle-documents-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .vehicle-detail-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .vehicle-status-expense-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .vehicle-info-grid,
+  .vehicle-metric-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .expense-edit-row {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .brand-wordmark {
+    font-size: 21px;
+    letter-spacing: 1.6px;
+  }
+
+  .brand-mark-wrap {
+    width: 50px;
+    height: 31px;
+  }
+
+  .stock-card-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .stock-list-row {
+    grid-template-columns: 64px minmax(0, 1fr) !important;
+    align-items: start !important;
+  }
+
+  .stock-list-row > div:last-child {
+    grid-column: 1 / -1;
+    justify-content: flex-end !important;
+    padding-top: 4px;
+  }
+
+  .audit-log-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  .audit-log-row > div:last-child {
+    text-align: left !important;
+  }
+
+  .reports-kpi-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .reports-inventory-grid,
+  .reports-money-grid,
+  .reports-profit-grid,
+  .reports-chart-extra-grid > div:first-child {
+    grid-template-columns: 1fr !important;
+  }
+
+  .admin-expense-row > div {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (min-width: 1500px) {
+  .stock-card-grid {
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)) !important;
+  }
+
+  .admin-stock-grid {
+    gap: 24px !important;
+  }
+}

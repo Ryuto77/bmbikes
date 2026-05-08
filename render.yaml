@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: bestmotors-api
+    runtime: python
+    rootDir: backend
+    plan: starter
+    buildCommand: |
+      pip install -r ../requirements.txt
+      python manage.py collectstatic --noinput
+      python manage.py migrate
+    startCommand: gunicorn backend.wsgi:application
+    healthCheckPath: /api/health/
+    envVars:
+      - key: DJANGO_DEBUG
+        value: "False"
+      - key: DJANGO_ALLOWED_HOSTS
+        value: api.yourdomain.com
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://yourdomain.com,https://www.yourdomain.com
+      - key: CSRF_TRUSTED_ORIGINS
+        value: https://yourdomain.com,https://www.yourdomain.com
+      - key: FRONTEND_BASE_URL
+        value: https://yourdomain.com
+      - key: EMAIL_BACKEND
+        value: django.core.mail.backends.smtp.EmailBackend
