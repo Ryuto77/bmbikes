@@ -1,5 +1,6 @@
 import re
 from pathlib import Path
+from urllib.parse import urlparse
 
 from django.utils import timezone
 from rest_framework import serializers
@@ -30,7 +31,34 @@ def validate_document_file(file):
     return file
 
 
+def safe_file_url(file_field, request=None):
+    if not file_field or not getattr(file_field, "name", ""):
+        return None
+    try:
+        url = file_field.url
+    except Exception:
+        return None
+
+    parsed = urlparse(url)
+    if parsed.scheme and parsed.netloc:
+        return url
+    return request.build_absolute_uri(url) if request else url
+
+
+class SafeFileUrlField(serializers.FileField):
+    def to_representation(self, value):
+        request = self.context.get("request")
+        return safe_file_url(value, request)
+
+
+class SafeImageUrlField(serializers.ImageField):
+    def to_representation(self, value):
+        request = self.context.get("request")
+        return safe_file_url(value, request)
+
+
 class VehicleImageSerializer(serializers.ModelSerializer):
+    image = SafeFileUrlField(required=False, allow_null=True)
     media_type = serializers.SerializerMethodField()
 
     class Meta:
@@ -45,6 +73,8 @@ class VehicleImageSerializer(serializers.ModelSerializer):
 
 
 class VehicleDocumentSerializer(serializers.ModelSerializer):
+    file = SafeFileUrlField(required=True)
+
     class Meta:
         model = VehicleDocument
         fields = ['id', 'title', 'file', 'created_at']
@@ -61,6 +91,7 @@ class ActivityLogSerializer(serializers.ModelSerializer):
         return obj.vehicle.vehicle_number if obj.vehicle else ""
 
 class VehicleSerializer(serializers.ModelSerializer):
+    cover_image = SafeImageUrlField(required=False, allow_null=True)
     status = serializers.SerializerMethodField()
     images = VehicleImageSerializer(many=True, read_only=True)
     documents = serializers.SerializerMethodField()

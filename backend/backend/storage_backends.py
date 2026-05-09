@@ -21,5 +21,5 @@ class SupabaseMediaStorage(S3Storage):
         super().__init__(*args, **kwargs)
 
     def url(self, name, parameters=None, expire=None, http_method=None):
-        clean_name = self._normalize_name(self._clean_name(name))
+        clean_name = str(name).replace("\\", "/").lstrip("/")
         return f"{settings.SUPABASE_STORAGE_PUBLIC_URL.rstrip('/')}/{filepath_to_uri(clean_name)}"

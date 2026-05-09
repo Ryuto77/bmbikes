@@ -76,6 +76,7 @@ const textValue = (vehicle, key) => (vehicle?.[key] || "").toString();
 const today = () => new Date().toISOString().slice(0, 10);
 const mediaUrl = (media) => (typeof media === "string" ? media : media?.url || media?.image || "");
 const mediaType = (media) => (typeof media === "string" ? (/\.(mp4|mov|webm|m4v|avi)(\?|$)/i.test(media) ? "video" : "image") : media?.media_type || (/\.(mp4|mov|webm|m4v|avi)(\?|$)/i.test(mediaUrl(media)) ? "video" : "image"));
+const apiErrorMessage = (err, fallback) => err.response?.data?.error || err.response?.data?.detail || err.message || fallback;
 
 function GalleryThumb({ media }) {
   const url = mediaUrl(media);
@@ -536,7 +537,7 @@ function AdminStock() {
       refreshVehicle(res.data);
       e.target.value = "";
     } catch (err) {
-      alert(err.response?.data ? JSON.stringify(err.response.data) : "Unable to upload images.");
+      alert(apiErrorMessage(err, "Unable to upload images."));
     } finally {
       setUploadingGallery(false);
     }

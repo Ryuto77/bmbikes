@@ -38,6 +38,10 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+function htmlErrorMessage(status) {
+  return `Server error${status ? ` (${status})` : ""}. Check the backend logs for the full traceback.`;
+}
+
 api.interceptors.response.use((response) => {
   if (response.data?.csrf_token) {
     csrfToken = response.data.csrf_token;
@@ -52,6 +56,12 @@ api.interceptors.response.use((response) => {
   }
 
   return response;
+}, (error) => {
+  if (typeof error.response?.data === "string" && /<html|<!doctype html/i.test(error.response.data.slice(0, 200))) {
+    error.response.data = { error: htmlErrorMessage(error.response.status) };
+  }
+
+  return Promise.reject(error);
 });
 
 export default api;
