@@ -35,6 +35,19 @@ def env_str(name, default=""):
     return os.getenv(name, default).strip()
 
 
+def append_unique(items, value):
+    if value and value not in items:
+        items.append(value)
+    return items
+
+
+def origin_from_url(value):
+    parsed = urlparse(value.strip())
+    if not parsed.scheme or not parsed.netloc:
+        return ""
+    return f"{parsed.scheme}://{parsed.netloc}"
+
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
@@ -85,15 +98,20 @@ MIDDLEWARE = [
 
 if find_spec('whitenoise'):
     MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
+FRONTEND_BASE_URL = os.getenv('FRONTEND_BASE_URL', 'http://127.0.0.1:5173').strip()
+FRONTEND_ORIGIN = origin_from_url(FRONTEND_BASE_URL)
+
 CORS_ALLOWED_ORIGINS = env_list(
     'CORS_ALLOWED_ORIGINS',
     'http://localhost:5173,http://127.0.0.1:5173',
 )
+append_unique(CORS_ALLOWED_ORIGINS, FRONTEND_ORIGIN)
 CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = env_list(
     'CSRF_TRUSTED_ORIGINS',
     'http://localhost:5173,http://127.0.0.1:5173',
 )
+append_unique(CSRF_TRUSTED_ORIGINS, FRONTEND_ORIGIN)
 
 ROOT_URLCONF = 'backend.urls'
 
@@ -246,7 +264,6 @@ STORAGES = {
     },
 }
 
-FRONTEND_BASE_URL = os.getenv('FRONTEND_BASE_URL', 'http://127.0.0.1:5173')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'Best Motors <no-reply@bestmotors.local>')
 EMAIL_BACKEND = os.getenv(
     'EMAIL_BACKEND',

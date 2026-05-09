@@ -286,6 +286,7 @@ function Dashboard() {
   const [filter, setFilter] = useState("All");
   const [sortBy, setSortBy] = useState("purchase_date_desc");
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [updatingStatusId, setUpdatingStatusId] = useState(null);
   const searchRef = useRef(null);
   const searchSectionRef = useRef(null);
@@ -298,10 +299,15 @@ function Dashboard() {
     }
 
     api.get("vehicles/").then((res) => {
+      if (!Array.isArray(res.data)) {
+        throw new Error("Vehicle API returned an unexpected response.");
+      }
       setVehicles(res.data);
       setCachedVehicles(res.data);
+      setLoadError("");
       setLoading(false);
-    }).catch(() => {
+    }).catch((err) => {
+      setLoadError(err.message || "Unable to load vehicles from the API.");
       setLoading(false);
     });
     api.get("auth/status/").then((res) => {
@@ -469,6 +475,22 @@ function Dashboard() {
           </select>
         </label>
       </div>
+
+      {loadError && (
+        <div
+          style={{
+            marginBottom: "18px",
+            padding: "12px 14px",
+            borderRadius: "10px",
+            border: "1px solid var(--danger)",
+            background: "rgba(220, 38, 38, 0.08)",
+            color: "var(--text)",
+            fontSize: "13px",
+          }}
+        >
+          {loadError}
+        </div>
+      )}
 
       {/* Grid */}
       {loading ? (

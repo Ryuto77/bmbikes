@@ -10,6 +10,28 @@
   - `www.yourdomain.in` -> Vercel
   - `api.yourdomain.in` -> Render
 
+## Local Offline Development
+
+Run these in two terminals from the repo root:
+
+```bash
+cd backend
+..\env\Scripts\python.exe manage.py runserver 127.0.0.1:8000
+```
+
+```bash
+cd frontend
+npm run dev
+```
+
+The tracked `frontend/.env.development` points Vite to:
+
+```env
+VITE_API_BASE_URL=http://127.0.0.1:8000/api/
+```
+
+The backend still uses `backend/.env` for local Supabase database credentials. Do not commit real passwords or keys.
+
 ## Files Added For Deployment
 
 - [render.yaml](./render.yaml)
@@ -38,6 +60,8 @@ Set frontend environment variable:
 ```env
 VITE_API_BASE_URL=https://api.yourdomain.in/api/
 ```
+
+This value is required. Without it, the deployed frontend cannot know where your Render backend is.
 
 `frontend/vercel.json` is already added so React routes like `/vehicle/...` and `/login` work after refresh.
 
@@ -100,6 +124,8 @@ DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS=True
 DJANGO_SECURE_HSTS_PRELOAD=True
 DJANGO_SECURE_PROXY_SSL_HEADER=True
 ```
+
+`FRONTEND_BASE_URL` is also automatically added to Django CORS and CSRF trusted origins by the settings file. Keep the explicit `CORS_ALLOWED_ORIGINS` and `CSRF_TRUSTED_ORIGINS` values when you have both apex and `www` domains.
 
 ## Python Dependencies
 
