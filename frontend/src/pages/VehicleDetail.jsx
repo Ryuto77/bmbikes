@@ -6,6 +6,7 @@ import { getCachedVehicleDetail, setCachedVehicleDetail } from "../api/publicCac
 import Layout from "../components/Layout";
 import {
   FiActivity,
+  FiAlertCircle,
   FiArrowLeft,
   FiCalendar,
   FiDollarSign,
@@ -115,21 +116,39 @@ function VehicleDetail() {
   const [selectedDocumentId, setSelectedDocumentId] = useState(null);
   const [documentPreviewUrl, setDocumentPreviewUrl] = useState("");
   const [auth, setAuth] = useState({ checked: false, is_authenticated: false });
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
+    let active = true;
     const cachedDetail = getCachedVehicleDetail(number);
     if (cachedDetail) setData(cachedDetail);
+    setLoadError("");
 
-    api.get(`search/?number=${number}`).then((res) => {
+    api.get(`search/?number=${encodeURIComponent(number)}`).then((res) => {
+      if (!active) return;
+      if (!res.data?.vehicle) {
+        throw new Error(res.data?.error || "Vehicle detail response was incomplete.");
+      }
       setData(res.data);
       setCachedVehicleDetail(number, res.data);
+      setLoadError("");
+    }).catch((err) => {
+      if (!active) return;
+      setLoadError(err.response?.data?.error || err.message || "Unable to load this vehicle.");
+      if (!cachedDetail) setData(null);
     });
 
     api.get("auth/status/").then((res) => {
+      if (!active) return;
       setAuth({ checked: true, ...res.data });
     }).catch(() => {
+      if (!active) return;
       setAuth({ checked: true, is_authenticated: false });
     });
+
+    return () => {
+      active = false;
+    };
   }, [number]);
 
   useEffect(() => {
@@ -158,6 +177,21 @@ function VehicleDetail() {
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [data, selectedDocumentId]);
+
+  if (!data && loadError) {
+    return (
+      <Layout>
+        <div style={{ display: "grid", placeItems: "center", minHeight: "42vh", padding: "24px" }}>
+          <div style={{ maxWidth: "520px", width: "100%", border: "1px solid var(--border)", borderRadius: "12px", background: "var(--surface)", padding: "20px", textAlign: "center" }}>
+            <FiAlertCircle size={26} color="var(--danger)" style={{ marginBottom: "10px" }} />
+            <div style={{ color: "var(--text)", fontWeight: 800, marginBottom: "6px" }}>Vehicle could not be loaded</div>
+            <div style={{ color: "var(--text-muted)", fontSize: "13px", marginBottom: "16px" }}>{loadError}</div>
+            <button className="btn-accent" type="button" onClick={() => navigate("/")}>Back to fleet</button>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   if (!data) {
     return (

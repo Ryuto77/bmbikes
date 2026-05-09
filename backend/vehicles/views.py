@@ -1,3 +1,5 @@
+from urllib.parse import urlparse
+
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.decorators import action, api_view
 from rest_framework.permissions import BasePermission, SAFE_METHODS
@@ -11,6 +13,32 @@ from .activity import log_activity
 from .models import ActivityLog, Vehicle, VehicleDocument, VehicleImage
 from .serializers import ActivityLogSerializer, VehicleSerializer, media_type_for_name, validate_document_file, validate_gallery_media
 from transactions.models import Purchase, Expense, Sale
+
+
+def absolute_file_url(request, file_field):
+    if not file_field or not getattr(file_field, "name", ""):
+        return None
+    try:
+        url = file_field.url
+    except Exception:
+        return None
+
+    parsed = urlparse(url)
+    if parsed.scheme and parsed.netloc:
+        return url
+    return request.build_absolute_uri(url)
+
+
+def serialize_vehicle_image(request, image):
+    url = absolute_file_url(request, image.image)
+    if not url:
+        return None
+    return {
+        "id": image.id,
+        "url": url,
+        "image": url,
+        "media_type": media_type_for_name(image.image.name),
+    }
 
 
 class VehiclePermission(BasePermission):
@@ -302,6 +330,18 @@ def search_vehicle(request):
         status = "sold" if sale else "unsold"
 
         # Final response
+        documents = []
+        if request.user and request.user.is_authenticated:
+            documents = [
+                {
+                    "id": doc.id,
+                    "title": doc.title,
+                    "file": absolute_file_url(request, doc.file),
+                    "created_at": doc.created_at,
+                }
+                for doc in vehicle.documents.all()
+            ]
+
         return Response({
             "vehicle": {
                 "id": vehicle.id,
@@ -311,25 +351,13 @@ def search_vehicle(request):
                 "model": vehicle.model,
                 "year": vehicle.year,
                 "km_driven": vehicle.km_driven,
-                "cover_image": request.build_absolute_uri(vehicle.cover_image.url) if vehicle.cover_image else None,
+                "cover_image": absolute_file_url(request, vehicle.cover_image),
                 "images": [
-                    {
-                        "id": img.id,
-                        "url": request.build_absolute_uri(img.image.url),
-                        "image": request.build_absolute_uri(img.image.url),
-                        "media_type": media_type_for_name(img.image.name),
-                    }
-                    for img in vehicle.images.all()
+                    image_data
+                    for image_data in (serialize_vehicle_image(request, img) for img in vehicle.images.all())
+                    if image_data
                 ],
-                "documents": [
-                    {
-                        "id": doc.id,
-                        "title": doc.title,
-                        "file": request.build_absolute_uri(doc.file.url),
-                        "created_at": doc.created_at,
-                    }
-                    for doc in vehicle.documents.all()
-                ],
+                "documents": documents,
             },
             "purchase": purchase_data,
             "expenses": expense_list,
@@ -341,7 +369,7 @@ def search_vehicle(request):
         })
 
     except Vehicle.DoesNotExist:
-        return Response({"error": "Vehicle not found"})
+        return Response({"error": "Vehicle not found"}, status=404)
 
 
 @api_view(['GET'])

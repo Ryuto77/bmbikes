@@ -1,5 +1,7 @@
 import axios from "axios";
 
+let csrfToken = "";
+
 const apiHost = window.location.hostname || "127.0.0.1";
 const isLocalHost = ["localhost", "127.0.0.1"].includes(apiHost);
 const configuredBaseUrl = (import.meta.env.VITE_API_BASE_URL || "").trim();
@@ -27,14 +29,20 @@ api.interceptors.request.use((config) => {
     .find((row) => row.startsWith("csrftoken="))
     ?.split("=")[1];
 
-  if (token) {
-    config.headers["X-CSRFToken"] = decodeURIComponent(token);
+  const headerToken = csrfToken || token;
+
+  if (headerToken) {
+    config.headers["X-CSRFToken"] = decodeURIComponent(headerToken);
   }
 
   return config;
 });
 
 api.interceptors.response.use((response) => {
+  if (response.data?.csrf_token) {
+    csrfToken = response.data.csrf_token;
+  }
+
   if (typeof response.data === "string" && /<html|<!doctype html/i.test(response.data.slice(0, 200))) {
     return Promise.reject(
       new Error(

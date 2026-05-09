@@ -9,6 +9,7 @@ from django.contrib.auth.tokens import default_token_generator
 from django.core.exceptions import ValidationError
 from django.core.mail import EmailMultiAlternatives
 from django.http import JsonResponse
+from django.middleware.csrf import get_token
 from django.utils.encoding import force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.utils.encoding import force_bytes
@@ -25,6 +26,7 @@ def auth_status(request):
         "is_authenticated": user.is_authenticated,
         "username": user.get_username() if user.is_authenticated else "",
         "is_staff": user.is_staff if user.is_authenticated else False,
+        "csrf_token": get_token(request),
     })
 
 
