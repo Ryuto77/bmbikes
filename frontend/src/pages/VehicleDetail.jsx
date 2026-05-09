@@ -108,6 +108,34 @@ function StatusSummary({ isSold }) {
   );
 }
 
+function vehicleListItemToDetail(vehicle) {
+  if (!vehicle) return null;
+  const purchaseAmount = Number(vehicle.purchase_amount || 0);
+  const saleAmount = Number(vehicle.sale_amount || 0);
+  const totalExpense = Number(vehicle.total_expense || 0);
+  return {
+    vehicle: {
+      id: vehicle.id,
+      name: vehicle.name,
+      vehicle_number: vehicle.vehicle_number,
+      brand: vehicle.brand,
+      model: vehicle.model,
+      year: vehicle.year,
+      km_driven: vehicle.km_driven,
+      cover_image: vehicle.cover_image,
+      images: vehicle.images || [],
+      documents: vehicle.documents || [],
+    },
+    purchase: { id: null, amount: purchaseAmount, date: vehicle.purchase_date || null },
+    sale: { id: null, amount: saleAmount, date: vehicle.sale_date || null },
+    expenses: [],
+    total_expense: totalExpense,
+    total_investment: purchaseAmount + totalExpense,
+    status: vehicle.status || "unsold",
+    profit: Number(vehicle.profit || 0),
+  };
+}
+
 function VehicleDetail() {
   const { number } = useParams();
   const navigate = useNavigate();
@@ -134,8 +162,25 @@ function VehicleDetail() {
       setLoadError("");
     }).catch((err) => {
       if (!active) return;
-      setLoadError(err.response?.data?.error || err.message || "Unable to load this vehicle.");
-      if (!cachedDetail) setData(null);
+      api.get(`vehicles/?search=${encodeURIComponent(number)}`).then((fallbackRes) => {
+        if (!active) return;
+        const vehicles = Array.isArray(fallbackRes.data) ? fallbackRes.data : fallbackRes.data?.results || [];
+        const vehicle = vehicles.find((item) => item.vehicle_number === String(number).toUpperCase()) || vehicles[0];
+        const fallbackDetail = vehicleListItemToDetail(vehicle);
+        if (!fallbackDetail) throw new Error("Vehicle was not found in stock.");
+        setData(fallbackDetail);
+        setLoadError("");
+      }).catch((fallbackErr) => {
+        if (!active) return;
+        setLoadError(
+          fallbackErr.response?.data?.error ||
+          err.response?.data?.error ||
+          fallbackErr.message ||
+          err.message ||
+          "Unable to load this vehicle."
+        );
+        if (!cachedDetail) setData(null);
+      });
     });
 
     api.get("auth/status/").then((res) => {
