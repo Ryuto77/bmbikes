@@ -1,9 +1,11 @@
 from urllib.parse import urlparse
+import logging
 
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.decorators import action, api_view
 from rest_framework.permissions import BasePermission, SAFE_METHODS
 from rest_framework.response import Response
+from rest_framework import serializers as drf_serializers
 from django.db.models import Exists, Max, OuterRef, Prefetch, Q, Subquery, Sum
 from django.db.models.functions import Coalesce
 from django.utils.dateparse import parse_date
@@ -13,6 +15,8 @@ from .activity import log_activity
 from .models import ActivityLog, Vehicle, VehicleDocument, VehicleImage
 from .serializers import ActivityLogSerializer, VehicleSerializer, media_type_for_name, validate_document_file, validate_gallery_media
 from transactions.models import Purchase, Expense, Sale
+
+logger = logging.getLogger(__name__)
 
 
 def absolute_file_url(request, file_field):
@@ -150,13 +154,25 @@ class VehicleViewSet(ModelViewSet):
             if should_skip(image):
                 continue
             validate_gallery_media(image)
-            VehicleImage.objects.create(vehicle=vehicle, image=image, order=next_order)
+            try:
+                VehicleImage.objects.create(vehicle=vehicle, image=image, order=next_order)
+            except Exception as exc:
+                logger.exception("Gallery media upload failed for vehicle id %s", vehicle.pk)
+                raise drf_serializers.ValidationError({
+                    "images": "Unable to save uploaded media. Check Supabase Storage settings."
+                }) from exc
             next_order += 1
         for image in self.request.FILES.getlist("extra_images"):
             if should_skip(image):
                 continue
             validate_gallery_media(image)
-            VehicleImage.objects.create(vehicle=vehicle, image=image, order=next_order)
+            try:
+                VehicleImage.objects.create(vehicle=vehicle, image=image, order=next_order)
+            except Exception as exc:
+                logger.exception("Gallery media upload failed for vehicle id %s", vehicle.pk)
+                raise drf_serializers.ValidationError({
+                    "images": "Unable to save uploaded media. Check Supabase Storage settings."
+                }) from exc
             next_order += 1
 
     def perform_create(self, serializer):
