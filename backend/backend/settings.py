@@ -80,9 +80,13 @@ INSTALLED_APPS = [
 ]
 
 SUPABASE_STORAGE_ENABLED = env_bool('SUPABASE_STORAGE_ENABLED', False)
-if SUPABASE_STORAGE_ENABLED:
+S3_STORAGE_ENABLED = env_bool('S3_STORAGE_ENABLED', False)
+if SUPABASE_STORAGE_ENABLED and S3_STORAGE_ENABLED:
+    raise ImproperlyConfigured('Enable only one media storage backend: SUPABASE_STORAGE_ENABLED or S3_STORAGE_ENABLED.')
+
+if SUPABASE_STORAGE_ENABLED or S3_STORAGE_ENABLED:
     if not find_spec('storages'):
-        raise ImproperlyConfigured('SUPABASE_STORAGE_ENABLED=True requires django-storages to be installed.')
+        raise ImproperlyConfigured('Remote media storage requires django-storages to be installed.')
     INSTALLED_APPS.append('storages')
 
 MIDDLEWARE = [
@@ -253,11 +257,37 @@ if SUPABASE_STORAGE_ENABLED:
     if missing_storage_vars:
         raise ImproperlyConfigured(f'Missing required Supabase Storage settings: {", ".join(missing_storage_vars)}')
     MEDIA_URL = SUPABASE_STORAGE_PUBLIC_URL.rstrip('/') + '/'
+elif S3_STORAGE_ENABLED:
+    S3_STORAGE_BUCKET = os.getenv('S3_STORAGE_BUCKET', '').strip()
+    S3_STORAGE_REGION = os.getenv('S3_STORAGE_REGION', 'auto').strip()
+    S3_STORAGE_ENDPOINT_URL = os.getenv('S3_STORAGE_ENDPOINT_URL', '').strip()
+    S3_STORAGE_PUBLIC_URL = os.getenv('S3_STORAGE_PUBLIC_URL', '').strip()
+    S3_STORAGE_ACCESS_KEY_ID = os.getenv('S3_STORAGE_ACCESS_KEY_ID', '').strip()
+    S3_STORAGE_SECRET_ACCESS_KEY = os.getenv('S3_STORAGE_SECRET_ACCESS_KEY', '').strip()
+    missing_storage_vars = [
+        name
+        for name, value in {
+            'S3_STORAGE_BUCKET': S3_STORAGE_BUCKET,
+            'S3_STORAGE_REGION': S3_STORAGE_REGION,
+            'S3_STORAGE_ENDPOINT_URL': S3_STORAGE_ENDPOINT_URL,
+            'S3_STORAGE_PUBLIC_URL': S3_STORAGE_PUBLIC_URL,
+            'S3_STORAGE_ACCESS_KEY_ID': S3_STORAGE_ACCESS_KEY_ID,
+            'S3_STORAGE_SECRET_ACCESS_KEY': S3_STORAGE_SECRET_ACCESS_KEY,
+        }.items()
+        if not value
+    ]
+    if missing_storage_vars:
+        raise ImproperlyConfigured(f'Missing required S3/R2 Storage settings: {", ".join(missing_storage_vars)}')
+    MEDIA_URL = S3_STORAGE_PUBLIC_URL.rstrip('/') + '/'
 
 staticfiles_backend = 'whitenoise.storage.CompressedManifestStaticFilesStorage' if find_spec('whitenoise') else 'django.contrib.staticfiles.storage.StaticFilesStorage'
 STORAGES = {
     'default': {
-        'BACKEND': 'backend.storage_backends.SupabaseMediaStorage' if SUPABASE_STORAGE_ENABLED else 'django.core.files.storage.FileSystemStorage',
+        'BACKEND': (
+            'backend.storage_backends.SupabaseMediaStorage' if SUPABASE_STORAGE_ENABLED
+            else 'backend.storage_backends.S3MediaStorage' if S3_STORAGE_ENABLED
+            else 'django.core.files.storage.FileSystemStorage'
+        ),
     },
     'staticfiles': {
         'BACKEND': staticfiles_backend,
