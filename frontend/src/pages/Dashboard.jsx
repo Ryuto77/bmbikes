@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import api from "../api/axios";
 import { getCachedVehicles, setCachedVehicles } from "../api/publicCache";
@@ -15,6 +15,7 @@ import {
 } from "react-icons/fi";
 import { useLocation, useNavigate } from "react-router-dom";
 import { UICard } from "../components/ui";
+import usePageTitle from "../hooks/usePageTitle";
 
 function StatCard({ icon: Icon, label, value, accent }) {
   return (
@@ -184,7 +185,7 @@ function FleetFeature({ vehicles, total, inStock, sold, auth }) {
             </p>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "10px" }}>
+          <div onClick={(event) => event.stopPropagation()} style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "10px", cursor: "default" }}>
             {detailTiles.map(([label, value]) => (
               <div key={label} style={{ background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: "12px", padding: "12px" }}>
                 <div style={{ fontSize: "20px", fontWeight: 700, color: "var(--text)" }}>{value}</div>
@@ -287,18 +288,13 @@ function Dashboard() {
   const [sortBy, setSortBy] = useState("purchase_date_desc");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
-  const [updatingStatusId, setUpdatingStatusId] = useState(null);
   const searchRef = useRef(null);
   const searchSectionRef = useRef(null);
 
-  useEffect(() => {
-    const cachedVehicles = getCachedVehicles();
-    if (cachedVehicles) {
-      setVehicles(cachedVehicles);
-      setLoading(false);
-    }
+  usePageTitle("Fleet");
 
-    api.get("vehicles/").then((res) => {
+  const loadVehicles = useCallback(() => {
+    return api.get("vehicles/").then((res) => {
       if (!Array.isArray(res.data)) {
         throw new Error("Vehicle API returned an unexpected response.");
       }
@@ -310,12 +306,32 @@ function Dashboard() {
       setLoadError(err.message || "Unable to load vehicles from the API.");
       setLoading(false);
     });
+  }, []);
+
+  useEffect(() => {
+    const cachedVehicles = getCachedVehicles();
+    if (cachedVehicles) {
+      setVehicles(cachedVehicles);
+      setLoading(false);
+    }
+
+    loadVehicles();
     api.get("auth/status/").then((res) => {
       setAuth({ checked: true, ...res.data });
     }).catch(() => {
       setAuth({ checked: true, is_authenticated: false, username: "" });
     });
-  }, []);
+  }, [loadVehicles]);
+
+  useEffect(() => {
+    const refreshVehicles = () => loadVehicles();
+    window.addEventListener("vehicles-changed", refreshVehicles);
+    window.addEventListener("focus", refreshVehicles);
+    return () => {
+      window.removeEventListener("vehicles-changed", refreshVehicles);
+      window.removeEventListener("focus", refreshVehicles);
+    };
+  }, [loadVehicles]);
 
   useEffect(() => {
     const focusSearch = () => searchRef.current?.focus();
@@ -334,22 +350,6 @@ function Dashboard() {
     setSearch(nextValue);
     if (/[a-z0-9]/i.test(nextValue)) {
       scrollSearchSectionIntoView();
-    }
-  };
-
-  const updateVehicleStatus = async (vehicle, status) => {
-    setUpdatingStatusId(vehicle.id);
-    try {
-      const res = await api.post(`vehicles/${vehicle.id}/status/`, { status });
-      setVehicles((current) => {
-        const next = current.map((item) => (item.id === vehicle.id ? res.data : item));
-        setCachedVehicles(next);
-        return next;
-      });
-    } catch (err) {
-      alert(err.response?.data?.error || "Unable to update vehicle status.");
-    } finally {
-      setUpdatingStatusId(null);
     }
   };
 
@@ -549,9 +549,6 @@ function Dashboard() {
               >
                 <VehicleCard
                   vehicle={v}
-                  canManage={auth.is_authenticated}
-                  onStatusChange={updateVehicleStatus}
-                  statusUpdating={updatingStatusId === v.id}
                 />
               </motion.div>
             ))}

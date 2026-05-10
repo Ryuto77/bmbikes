@@ -1,8 +1,8 @@
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FiArrowUpRight, FiRefreshCw } from "react-icons/fi";
+import { FiArrowUpRight } from "react-icons/fi";
 
-function VehicleCard({ vehicle, canManage = false, onStatusChange, statusUpdating = false }) {
+function VehicleCard({ vehicle }) {
   const navigate = useNavigate();
 
   const isSold = vehicle.status === "sold";
@@ -70,16 +70,7 @@ function VehicleCard({ vehicle, canManage = false, onStatusChange, statusUpdatin
         )}
 
         {/* Status badge */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            if (canManage && onStatusChange) {
-              onStatusChange(vehicle, isSold ? "unsold" : "sold");
-            }
-          }}
-          disabled={!canManage || statusUpdating}
-          title={canManage ? `Mark as ${isSold ? "in stock" : "sold"}` : undefined}
+        <div
           style={{
             position: "absolute",
             top: "10px",
@@ -94,17 +85,16 @@ function VehicleCard({ vehicle, canManage = false, onStatusChange, statusUpdatin
             color: isSold ? "var(--success)" : "var(--danger)",
             border: `1px solid ${isSold ? "rgba(34,197,94,0.2)" : "rgba(239,68,68,0.2)"}`,
             backdropFilter: "blur(8px)",
-            cursor: canManage ? "pointer" : "default",
+            cursor: "default",
             fontFamily: "Outfit, sans-serif",
             display: "flex",
             alignItems: "center",
             gap: "5px",
-            opacity: statusUpdating ? 0.75 : 1,
+            pointerEvents: "none",
           }}
         >
-          {statusUpdating && <FiRefreshCw size={10} />}
           {isSold ? "Sold" : "In Stock"}
-        </button>
+        </div>
       </div>
 
       {/* Content */}

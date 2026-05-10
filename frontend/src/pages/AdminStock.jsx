@@ -2,8 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import api from "../api/axios";
 import { getCachedAuthState, setCachedAuthState, clearCachedAuthState } from "../api/authCache";
+import { clearCachedVehicleDetail, clearPublicVehicleCache, notifyVehiclesChanged, setCachedVehicles } from "../api/publicCache";
 import Layout from "../components/Layout";
 import { UICard } from "../components/ui";
+import usePageTitle from "../hooks/usePageTitle";
 import {
   FiArrowDown,
   FiArrowRight,
@@ -215,6 +217,8 @@ function AdminStock() {
   const searchRef = useRef(null);
   const stockSearchSectionRef = useRef(null);
 
+  usePageTitle("Stock Manager");
+
   const isEditing = Boolean(form.id);
   const selectedVehicle = useMemo(() => vehicles.find((v) => v.id === form.id), [vehicles, form.id]);
   const brands = useMemo(() => [...new Set(vehicles.map((v) => v.brand).filter(Boolean))].sort(), [vehicles]);
@@ -286,6 +290,7 @@ function AdminStock() {
     try {
       const res = await api.get("vehicles/");
       setVehicles(res.data);
+      setCachedVehicles(res.data);
     } finally {
       setLoading(false);
     }
@@ -323,7 +328,13 @@ function AdminStock() {
   };
 
   const refreshVehicle = (updatedVehicle) => {
-    setVehicles((current) => current.map((item) => (item.id === updatedVehicle.id ? updatedVehicle : item)));
+    setVehicles((current) => {
+      const next = current.map((item) => (item.id === updatedVehicle.id ? updatedVehicle : item));
+      setCachedVehicles(next);
+      return next;
+    });
+    clearCachedVehicleDetail(updatedVehicle.vehicle_number);
+    notifyVehiclesChanged({ vehicleNumber: updatedVehicle.vehicle_number });
   };
 
   const loadFinance = async (vehicleNumber) => {
@@ -422,6 +433,8 @@ function AdminStock() {
       const res = await api.patch(`vehicles/${form.id}/`, payload, { headers: { "Content-Type": "multipart/form-data" } });
       await saveFinance(res.data.id);
       await loadVehicles();
+      clearPublicVehicleCache(res.data.vehicle_number);
+      notifyVehiclesChanged({ vehicleNumber: res.data.vehicle_number });
       resetForm();
     } catch (err) {
       alert(err.response?.data ? JSON.stringify(err.response.data) : "Unable to save vehicle.");
@@ -522,6 +535,8 @@ function AdminStock() {
     if (!deleteCandidate) return;
     await api.delete(`vehicles/${deleteCandidate.id}/`);
     if (form.id === deleteCandidate.id) resetForm();
+    clearPublicVehicleCache(deleteCandidate.vehicle_number);
+    notifyVehiclesChanged({ vehicleNumber: deleteCandidate.vehicle_number });
     setDeleteCandidate(null);
     await loadVehicles();
   };

@@ -5,6 +5,7 @@ import { FiArrowLeft, FiCheck, FiLock, FiLogIn } from "react-icons/fi";
 import api from "../api/axios";
 import Layout from "../components/Layout";
 import { UICard } from "../components/ui";
+import usePageTitle from "../hooks/usePageTitle";
 import heroImage from "../assets/hero.png";
 import brandLogo from "../assets/bm-logo.svg";
 
@@ -39,13 +40,10 @@ function Login() {
   const navigate = useNavigate();
   const returnPath = useMemo(() => resolveReturnPath(location.state?.from), [location.state]);
   const [form, setForm] = useState({ username: "", password: "" });
-  const [resetEmail, setResetEmail] = useState("");
   const [error, setError] = useState("");
-  const [resetMessage, setResetMessage] = useState("");
-  const [resetError, setResetError] = useState("");
-  const [resetOpen, setResetOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [resetSubmitting, setResetSubmitting] = useState(false);
+
+  usePageTitle("Login");
 
   useEffect(() => {
     let active = true;
@@ -75,22 +73,6 @@ function Login() {
       setError(detail || `Login failed${err.response?.status ? ` (${err.response.status})` : ""}.`);
     } finally {
       setSubmitting(false);
-    }
-  };
-
-  const handleResetRequest = async (event) => {
-    event.preventDefault();
-    setResetError("");
-    setResetMessage("");
-    setResetSubmitting(true);
-    try {
-      await api.get("auth/status/").catch(() => {});
-      const res = await api.post("auth/password-reset/", { email: resetEmail });
-      setResetMessage(res.data.message || "If that email matches an active account, a reset link has been sent.");
-    } catch (err) {
-      setResetError(err.response?.data?.error || "Unable to request password reset.");
-    } finally {
-      setResetSubmitting(false);
     }
   };
 
@@ -130,21 +112,9 @@ function Login() {
                   </button>
               </form>
               <div style={{ display: "grid", gap: "10px", marginTop: "12px" }}>
-                <button className="btn-ghost" type="button" onClick={() => setResetOpen(!resetOpen)} style={{ padding: "8px 10px", fontSize: "13px" }}>
+                <button className="btn-ghost" type="button" onClick={() => navigate("/forgot-password")} style={{ padding: "8px 10px", fontSize: "13px" }}>
                   Forgot password?
                 </button>
-                {resetOpen && (
-                  <form onSubmit={handleResetRequest} style={{ display: "grid", gap: "10px", padding: "12px", border: "1px solid var(--border)", borderRadius: "10px", background: "var(--surface2)" }}>
-                    <Field label="Account Email" required>
-                      <input className="input-base" type="email" value={resetEmail} onChange={(event) => setResetEmail(event.target.value)} autoComplete="email" required />
-                    </Field>
-                    {resetError && <div style={{ color: "var(--danger)", fontSize: "13px" }}>{resetError}</div>}
-                    {resetMessage && <div style={{ color: "var(--success)", fontSize: "13px" }}>{resetMessage}</div>}
-                    <button className="btn-accent" type="submit" disabled={resetSubmitting} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
-                      {resetSubmitting ? "Sending..." : "Send Reset Email"}
-                    </button>
-                  </form>
-                )}
               </div>
             </UICard>
           </motion.div>

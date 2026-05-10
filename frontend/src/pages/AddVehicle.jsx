@@ -3,7 +3,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useLocation, useNavigate } from "react-router-dom";
 import api from "../api/axios";
 import { clearCachedAuthState, getCachedAuthState, setCachedAuthState } from "../api/authCache";
+import { clearPublicVehicleCache, notifyVehiclesChanged } from "../api/publicCache";
 import Layout from "../components/Layout";
+import usePageTitle from "../hooks/usePageTitle";
 import {
   FiArrowRight,
   FiArrowLeft,
@@ -72,6 +74,8 @@ function AddVehicle() {
   const [coverPreview, setCoverPreview] = useState(null);
   const [extraImages, setExtraImages] = useState([]);
   const [extraPreviews, setExtraPreviews] = useState([]);
+
+  usePageTitle("Add Vehicle");
 
   useEffect(() => {
     if (cachedAuth.checked && !cachedAuth.is_authenticated) {
@@ -196,6 +200,8 @@ function AddVehicle() {
         }
       }
 
+      clearPublicVehicleCache(res.data.vehicle_number);
+      notifyVehiclesChanged({ vehicleNumber: res.data.vehicle_number });
       setDone(true);
       setTimeout(() => navigate("/"), 1800);
     } catch (err) {

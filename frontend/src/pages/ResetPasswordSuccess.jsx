@@ -3,9 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { FiArrowRight, FiCheckCircle } from "react-icons/fi";
 import Layout from "../components/Layout";
 import { UICard } from "../components/ui";
+import usePageTitle from "../hooks/usePageTitle";
 
 function ResetPasswordSuccess() {
   const navigate = useNavigate();
+
+  usePageTitle("Password Updated");
 
   useEffect(() => {
     const timer = window.setTimeout(() => navigate("/login", { replace: true }), 2200);

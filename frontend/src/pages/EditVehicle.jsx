@@ -3,7 +3,9 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import api from "../api/axios";
 import { clearCachedAuthState, getCachedAuthState, setCachedAuthState } from "../api/authCache";
+import { clearPublicVehicleCache, notifyVehiclesChanged } from "../api/publicCache";
 import Layout from "../components/Layout";
+import usePageTitle from "../hooks/usePageTitle";
 import {
   FiArrowLeft,
   FiArrowRight,
@@ -76,6 +78,8 @@ function EditVehicle() {
   const [existingImages, setExistingImages] = useState([]);
   const [extraImages, setExtraImages] = useState([]);
   const [extraPreviews, setExtraPreviews] = useState([]);
+
+  usePageTitle(vehicle?.vehicle_number ? `Edit ${vehicle.vehicle_number}` : "Edit Vehicle");
 
   useEffect(() => {
     if (cachedAuth.checked && !cachedAuth.is_authenticated) {
@@ -235,6 +239,9 @@ function EditVehicle() {
 
       const res = await api.patch(`vehicles/${vehicle.id}/`, formData, { headers: { "Content-Type": "multipart/form-data" } });
       await saveFinance(res.data.id);
+      clearPublicVehicleCache(number);
+      clearPublicVehicleCache(res.data.vehicle_number);
+      notifyVehiclesChanged({ vehicleNumber: res.data.vehicle_number });
       navigate(`/vehicle/${res.data.vehicle_number}`);
     } catch (err) {
       alert(err.response?.data ? JSON.stringify(err.response.data) : "Unable to save vehicle.");

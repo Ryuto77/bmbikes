@@ -46,6 +46,14 @@ export function setCachedVehicles(vehicles) {
   writeCache(VEHICLES_CACHE_KEY, (vehicles || []).map(publicVehicle));
 }
 
+export function clearCachedVehicles() {
+  try {
+    localStorage.removeItem(VEHICLES_CACHE_KEY);
+  } catch {
+    // localStorage can fail in private browsing or when storage is full.
+  }
+}
+
 export function getCachedVehicleDetail(number) {
   const cached = readCache(`${VEHICLE_DETAIL_PREFIX}${String(number || "").toUpperCase()}`);
   return cached?.cached_public ? null : cached;
@@ -53,4 +61,21 @@ export function getCachedVehicleDetail(number) {
 
 export function setCachedVehicleDetail(number, data) {
   writeCache(`${VEHICLE_DETAIL_PREFIX}${String(number || "").toUpperCase()}`, publicVehicleDetail(data));
+}
+
+export function clearCachedVehicleDetail(number) {
+  try {
+    localStorage.removeItem(`${VEHICLE_DETAIL_PREFIX}${String(number || "").toUpperCase()}`);
+  } catch {
+    // localStorage can fail in private browsing or when storage is full.
+  }
+}
+
+export function clearPublicVehicleCache(number) {
+  clearCachedVehicles();
+  if (number) clearCachedVehicleDetail(number);
+}
+
+export function notifyVehiclesChanged(detail = {}) {
+  window.dispatchEvent(new CustomEvent("vehicles-changed", { detail }));
 }

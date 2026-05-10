@@ -4,6 +4,7 @@ import { FiArrowLeft, FiCheck, FiLock } from "react-icons/fi";
 import api from "../api/axios";
 import Layout from "../components/Layout";
 import { UICard } from "../components/ui";
+import usePageTitle from "../hooks/usePageTitle";
 
 function ResetPassword() {
   const { uid, token } = useParams();
@@ -11,6 +12,8 @@ function ResetPassword() {
   const [form, setForm] = useState({ password: "", confirm: "" });
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  usePageTitle("Reset Password");
 
   const handleSubmit = async (event) => {
     event.preventDefault();

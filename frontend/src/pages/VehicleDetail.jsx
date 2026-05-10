@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import api from "../api/axios";
 import { getCachedVehicleDetail, setCachedVehicleDetail } from "../api/publicCache";
 import Layout from "../components/Layout";
+import usePageTitle from "../hooks/usePageTitle";
 import {
   FiActivity,
   FiAlertCircle,
@@ -145,6 +146,9 @@ function VehicleDetail() {
   const [documentPreviewUrl, setDocumentPreviewUrl] = useState("");
   const [auth, setAuth] = useState({ checked: false, is_authenticated: false });
   const [loadError, setLoadError] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
+
+  usePageTitle(data?.vehicle?.vehicle_number || "Vehicle");
 
   useEffect(() => {
     let active = true;
@@ -194,6 +198,17 @@ function VehicleDetail() {
     return () => {
       active = false;
     };
+  }, [number, reloadKey]);
+
+  useEffect(() => {
+    const refreshDetail = (event) => {
+      const changedNumber = event.detail?.vehicleNumber;
+      if (!changedNumber || String(changedNumber).toUpperCase() === String(number).toUpperCase()) {
+        setReloadKey((current) => current + 1);
+      }
+    };
+    window.addEventListener("vehicles-changed", refreshDetail);
+    return () => window.removeEventListener("vehicles-changed", refreshDetail);
   }, [number]);
 
   useEffect(() => {

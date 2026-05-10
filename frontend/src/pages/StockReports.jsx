@@ -5,6 +5,7 @@ import api from "../api/axios";
 import { clearCachedAuthState, getCachedAuthState, setCachedAuthState } from "../api/authCache";
 import Layout from "../components/Layout";
 import { UICard } from "../components/ui";
+import usePageTitle from "../hooks/usePageTitle";
 
 const numericValue = (vehicle, key) => Number(vehicle?.[key] || 0);
 const vehicleProfit = (vehicle) => numericValue(vehicle, "profit");
@@ -76,6 +77,8 @@ function StockReports() {
   const [activityLoading, setActivityLoading] = useState(false);
   const [auditExpanded, setAuditExpanded] = useState(false);
 
+  usePageTitle("Reports");
+
   const loadActivity = async () => {
     setActivityLoading(true);
     try {
@@ -122,6 +125,18 @@ function StockReports() {
       setLoading(false);
     });
   }, [cachedAuth.checked, cachedAuth.is_authenticated]);
+
+  useEffect(() => {
+    const refreshReports = () => {
+      if (!auth.is_authenticated) return;
+      Promise.allSettled([api.get("vehicles/"), api.get("activity/")]).then(([vehicleResult, activityResult]) => {
+        if (vehicleResult.status === "fulfilled") setVehicles(vehicleResult.value.data);
+        if (activityResult.status === "fulfilled") setActivityLogs(activityResult.value.data);
+      });
+    };
+    window.addEventListener("vehicles-changed", refreshReports);
+    return () => window.removeEventListener("vehicles-changed", refreshReports);
+  }, [auth.is_authenticated]);
 
   const visibleActivityLogs = auditExpanded ? activityLogs : activityLogs.slice(0, 5);
 

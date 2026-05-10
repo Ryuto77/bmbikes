@@ -10,6 +10,16 @@ const fallbackBaseUrl = isLocalHost
   : "/api/";
 const apiBaseUrl = configuredBaseUrl || fallbackBaseUrl;
 
+export function getApiRootUrl() {
+  const url = new URL(apiBaseUrl, window.location.origin);
+  const pathname = url.pathname.replace(/\/api\/?$/, "/");
+  return `${url.origin}${pathname}`;
+}
+
+export function getDjangoAdminUrl() {
+  return new URL("django-admin/", getApiRootUrl()).href;
+}
+
 if (!configuredBaseUrl && !isLocalHost) {
   console.error(
     "Missing VITE_API_BASE_URL. Using same-origin /api/ fallback; set VITE_API_BASE_URL to your Django API URL for Vercel + Render."

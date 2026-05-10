@@ -8,7 +8,17 @@ import StockReports from "./pages/StockReports";
 import Login from "./pages/Login";
 import ResetPassword from "./pages/ResetPassword";
 import ResetPasswordSuccess from "./pages/ResetPasswordSuccess";
+import RequestPasswordReset from "./pages/RequestPasswordReset";
 import { useEffect } from "react";
+import { getDjangoAdminUrl } from "./api/axios";
+
+function DjangoAdminRedirect() {
+  useEffect(() => {
+    window.location.replace(getDjangoAdminUrl());
+  }, []);
+
+  return <h1>Opening Django admin...</h1>;
+}
 
 function App() {
   useEffect(() => {
@@ -22,8 +32,10 @@ function App() {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/forgot-password" element={<RequestPasswordReset />} />
         <Route path="/reset-password/:uid/:token" element={<ResetPassword />} />
         <Route path="/reset-password/success" element={<ResetPasswordSuccess />} />
+        <Route path="/django-admin/*" element={<DjangoAdminRedirect />} />
         <Route path="/vehicle/:number" element={<VehicleDetail />} />
         <Route path="/admin" element={<AdminStock />} />
         <Route path="/reports" element={<StockReports />} />
