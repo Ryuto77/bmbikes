@@ -14,12 +14,60 @@ services:
       - key: DJANGO_DEBUG
         value: "False"
       - key: DJANGO_ALLOWED_HOSTS
-        value: api.yourdomain.com
+        value: .onrender.com
       - key: CORS_ALLOWED_ORIGINS
-        value: https://yourdomain.com,https://www.yourdomain.com
+        value: https://bmbikes.vercel.app
       - key: CSRF_TRUSTED_ORIGINS
-        value: https://yourdomain.com,https://www.yourdomain.com
+        value: https://bmbikes.vercel.app
       - key: FRONTEND_BASE_URL
-        value: https://yourdomain.com
+        value: https://bmbikes.vercel.app
+      - key: DB_ENGINE
+        value: postgresql
+      - key: DB_PORT
+        value: "5432"
+      - key: DB_SSLMODE
+        value: require
+      - key: DB_DISABLE_SERVER_SIDE_CURSORS
+        value: "True"
+      - key: S3_STORAGE_ENABLED
+        value: "True"
+      - key: S3_STORAGE_BUCKET
+        value: media
+      - key: S3_STORAGE_REGION
+        value: auto
+      - key: DEFAULT_FROM_EMAIL
+        value: Best Motors <no-reply@example.com>
       - key: EMAIL_BACKEND
         value: django.core.mail.backends.smtp.EmailBackend
+      - key: EMAIL_PORT
+        value: "587"
+      - key: EMAIL_USE_TLS
+        value: "True"
+      - key: EMAIL_USE_SSL
+        value: "False"
+      - key: DJANGO_SECURE_SSL_REDIRECT
+        value: "True"
+      - key: DJANGO_SECRET_KEY
+        sync: false
+      - key: DB_NAME
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_HOST
+        sync: false
+      - key: S3_STORAGE_ENDPOINT_URL
+        sync: false
+      - key: S3_STORAGE_PUBLIC_URL
+        sync: false
+      - key: S3_STORAGE_ACCESS_KEY_ID
+        sync: false
+      - key: S3_STORAGE_SECRET_ACCESS_KEY
+        sync: false
+      - key: EMAIL_HOST
+        sync: false
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
