@@ -18,6 +18,10 @@ from transactions.models import Purchase, Expense, Sale
 
 logger = logging.getLogger(__name__)
 
+PARIVAHAN_CHALLAN_URL = "https://echallan.parivahan.gov.in/index/accused-challan"
+PARIVAHAN_HOME_URL = "https://parivahan.gov.in/parivahan/"
+VAHAN_CITIZEN_URL = "https://vahan.parivahan.gov.in/vahanservice/vahan/ui/statevalidation/homepage.xhtml"
+
 
 def absolute_file_url(request, file_field):
     if not file_field or not getattr(file_field, "name", ""):
@@ -49,7 +53,7 @@ class VehiclePermission(BasePermission):
     def has_permission(self, request, view):
         if request.method in SAFE_METHODS:
             return True
-        return request.user and request.user.is_authenticated
+        return request.user and request.user.is_authenticated and request.user.is_staff
 
 
 # ✅ THIS WAS MISSING OR DELETED
@@ -73,7 +77,7 @@ class VehicleViewSet(ModelViewSet):
         )
 
         prefetches = ["images"]
-        if self.request.user and self.request.user.is_authenticated:
+        if self.request.user and self.request.user.is_authenticated and self.request.user.is_staff:
             prefetches.append("documents")
 
         queryset = queryset.prefetch_related(*prefetches)
@@ -183,6 +187,9 @@ class VehicleViewSet(ModelViewSet):
     def perform_update(self, serializer):
         previous_cover_name = serializer.instance.cover_image.name if serializer.instance.cover_image else ""
         vehicle = serializer.save()
+        if "market_value_estimate" in self.request.data or "market_value_notes" in self.request.data:
+            vehicle.market_value_updated_at = timezone.now()
+            vehicle.save(update_fields=["market_value_updated_at"])
         if "cover_image" in self.request.FILES:
             self.preserve_previous_cover(vehicle, previous_cover_name)
         self.save_extra_images(vehicle)
@@ -219,7 +226,13 @@ class VehicleViewSet(ModelViewSet):
 
             Sale.objects.update_or_create(
                 vehicle=vehicle,
-                defaults={"amount": amount, "date": sale_date},
+                defaults={
+                    "amount": amount,
+                    "date": sale_date,
+                    "buyer_name": (request.data.get("buyer_name") or "").strip(),
+                    "buyer_phone": (request.data.get("buyer_phone") or "").strip(),
+                    "buyer_aadhaar": (request.data.get("buyer_aadhaar") or "").strip(),
+                },
             )
             log_activity(request, "Vehicle marked sold", vehicle, f"{vehicle.vehicle_number} was marked sold.")
         elif next_status in ["unsold", "in_stock"]:
@@ -277,16 +290,20 @@ class VehicleViewSet(ModelViewSet):
     def upload_document(self, request, pk=None):
         vehicle = self.get_object()
         title = (request.data.get("title") or "").strip()
+        document_stage = (request.data.get("document_stage") or "general").strip()
         file = request.FILES.get("file")
         if not title or not file:
             return Response({"error": "Document title and file are required."}, status=400)
+        valid_stages = {choice[0] for choice in VehicleDocument.DOCUMENT_STAGE_CHOICES}
+        if document_stage not in valid_stages:
+            return Response({"error": "Document stage is invalid."}, status=400)
         try:
             validate_document_file(file)
         except Exception as exc:
             detail = exc.detail[0] if hasattr(exc, "detail") and exc.detail else str(exc)
             return Response({"error": detail}, status=400)
 
-        VehicleDocument.objects.create(vehicle=vehicle, title=title, file=file)
+        VehicleDocument.objects.create(vehicle=vehicle, title=title, document_stage=document_stage, file=file)
         log_activity(request, "Document uploaded", vehicle, f"{title} was uploaded for {vehicle.vehicle_number}.")
         return Response(self.get_serializer(vehicle).data)
 
@@ -308,6 +325,7 @@ def search_vehicle(request):
 
     try:
         vehicle = Vehicle.objects.get(vehicle_number=number, is_archived=False)
+        can_view_finance = bool(request.user and request.user.is_authenticated and request.user.is_staff)
 
         purchase = Purchase.objects.filter(vehicle=vehicle).first()
         sale = Sale.objects.filter(vehicle=vehicle).first()
@@ -317,14 +335,20 @@ def search_vehicle(request):
         purchase_data = {
             "id": purchase.id if purchase else None,
             "amount": purchase.amount if purchase else 0,
-            "date": purchase.date if purchase else None
+            "date": purchase.date if purchase else None,
+            "seller_name": purchase.seller_name if purchase else "",
+            "seller_phone": purchase.seller_phone if purchase else "",
+            "seller_aadhaar": purchase.seller_aadhaar if purchase else "",
         }
 
         # Sale
         sale_data = {
             "id": sale.id if sale else None,
             "amount": sale.amount if sale else 0,
-            "date": sale.date if sale else None
+            "date": sale.date if sale else None,
+            "buyer_name": sale.buyer_name if sale else "",
+            "buyer_phone": sale.buyer_phone if sale else "",
+            "buyer_aadhaar": sale.buyer_aadhaar if sale else "",
         }
 
         # Expenses
@@ -347,11 +371,12 @@ def search_vehicle(request):
 
         # Final response
         documents = []
-        if request.user and request.user.is_authenticated:
+        if request.user and request.user.is_authenticated and request.user.is_staff:
             documents = [
                 {
                     "id": doc.id,
                     "title": doc.title,
+                    "document_stage": doc.document_stage,
                     "file": absolute_file_url(request, doc.file),
                     "created_at": doc.created_at,
                 }
@@ -367,6 +392,9 @@ def search_vehicle(request):
                 "model": vehicle.model,
                 "year": vehicle.year,
                 "km_driven": vehicle.km_driven,
+                "market_value_estimate": vehicle.market_value_estimate,
+                "market_value_notes": vehicle.market_value_notes if can_view_finance else "",
+                "market_value_updated_at": vehicle.market_value_updated_at,
                 "cover_image": absolute_file_url(request, vehicle.cover_image),
                 "images": [
                     image_data
@@ -375,13 +403,14 @@ def search_vehicle(request):
                 ],
                 "documents": documents,
             },
-            "purchase": purchase_data,
-            "expenses": expense_list,
-            "total_expense": total_expense,
-            "total_investment": total_investment,
-            "sale": sale_data,
+            "purchase": purchase_data if can_view_finance else None,
+            "expenses": expense_list if can_view_finance else [],
+            "total_expense": total_expense if can_view_finance else 0,
+            "total_investment": total_investment if can_view_finance else 0,
+            "sale": sale_data if can_view_finance else None,
             "status": status,
-            "profit": profit
+            "profit": profit if can_view_finance else 0,
+            "finance_visible": can_view_finance
         })
 
     except Vehicle.DoesNotExist:
@@ -390,7 +419,7 @@ def search_vehicle(request):
 
 @api_view(['GET'])
 def activity_logs(request):
-    if not request.user or not request.user.is_authenticated:
+    if not request.user or not request.user.is_authenticated or not request.user.is_staff:
         return Response({"detail": "Authentication credentials were not provided."}, status=403)
 
     vehicle_number = request.GET.get("vehicle")
@@ -399,3 +428,15 @@ def activity_logs(request):
         logs = logs.filter(vehicle__vehicle_number=vehicle_number)
     serializer = ActivityLogSerializer(logs[:100], many=True)
     return Response(serializer.data)
+
+
+@api_view(['GET'])
+def public_rto_links(request):
+    vehicle_number = (request.GET.get("number") or "").strip().upper()
+    return Response({
+        "vehicle_number": vehicle_number,
+        "challan_url": PARIVAHAN_CHALLAN_URL,
+        "vehicle_info_url": PARIVAHAN_HOME_URL,
+        "vahan_services_url": VAHAN_CITIZEN_URL,
+        "message": "Official Parivahan services require captcha/OTP on the government portal, so this site opens the official pages instead of collecting payment details.",
+    })

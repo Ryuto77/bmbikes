@@ -30,7 +30,7 @@ class SaleInline(admin.TabularInline):
 
 @admin.register(Vehicle)
 class VehicleAdmin(admin.ModelAdmin):
-    list_display = ("vehicle_number", "brand", "model", "year", "km_driven", "is_archived", "archived_at")
+    list_display = ("vehicle_number", "brand", "model", "year", "km_driven", "market_value_estimate", "is_archived", "archived_at")
     list_filter = ("brand", "year", "is_archived")
     search_fields = ("vehicle_number", "brand", "model", "name")
     ordering = ("vehicle_number",)
@@ -50,7 +50,8 @@ class VehicleImageAdmin(admin.ModelAdmin):
 
 @admin.register(VehicleDocument)
 class VehicleDocumentAdmin(admin.ModelAdmin):
-    list_display = ("vehicle", "title", "created_at")
+    list_display = ("vehicle", "title", "document_stage", "created_at")
+    list_filter = ("document_stage", "created_at")
     search_fields = ("vehicle__vehicle_number", "title")
 
 

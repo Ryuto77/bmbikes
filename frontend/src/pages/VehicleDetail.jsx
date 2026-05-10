@@ -9,6 +9,7 @@ import {
   FiActivity,
   FiAlertCircle,
   FiArrowLeft,
+  FiArrowUpRight,
   FiCalendar,
   FiDollarSign,
   FiEdit2,
@@ -147,6 +148,7 @@ function VehicleDetail() {
   const [auth, setAuth] = useState({ checked: false, is_authenticated: false });
   const [loadError, setLoadError] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
+  const [rtoLinks, setRtoLinks] = useState(null);
 
   usePageTitle(data?.vehicle?.vehicle_number || "Vehicle");
 
@@ -199,6 +201,18 @@ function VehicleDetail() {
       active = false;
     };
   }, [number, reloadKey]);
+
+  useEffect(() => {
+    let active = true;
+    api.get(`rto-links/?number=${encodeURIComponent(number)}`).then((res) => {
+      if (active) setRtoLinks(res.data);
+    }).catch(() => {
+      if (active) setRtoLinks(null);
+    });
+    return () => {
+      active = false;
+    };
+  }, [number]);
 
   useEffect(() => {
     const refreshDetail = (event) => {
@@ -261,7 +275,7 @@ function VehicleDetail() {
     );
   }
 
-  const { vehicle, purchase, sale, expenses = [], total_expense = 0, profit = 0, status } = data;
+  const { vehicle, purchase, sale, expenses = [], total_expense = 0, profit = 0, status, finance_visible = false } = data;
   const coverMedia = normalizeMedia(vehicle.cover_image);
   if (coverMedia) coverMedia.isCover = true;
   const galleryMedia = (vehicle.images || []).map(normalizeMedia).filter(Boolean);
@@ -271,6 +285,7 @@ function VehicleDetail() {
   const isSold = status === "sold";
   const profitPositive = profit >= 0;
   const investmentTotal = Number(purchase?.amount || 0) + Number(total_expense || 0);
+  const financeVisible = Boolean(finance_visible || auth.is_staff);
 
   return (
     <Layout>
@@ -309,7 +324,7 @@ function VehicleDetail() {
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", justifyContent: "flex-end" }}>
             <StatusSummary isSold={isSold} />
-            {auth.is_authenticated && (
+            {auth.is_staff && (
               <button className="btn-accent" onClick={() => navigate(`/edit/${vehicle.vehicle_number}`)} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "9px 14px" }}>
                 <FiEdit2 size={14} />
                 Edit
@@ -348,6 +363,7 @@ function VehicleDetail() {
                 ["Model", vehicle.model],
                 ["Year", vehicle.year],
                 ["ODO", vehicle.km_driven ? `${vehicle.km_driven.toLocaleString("en-IN")} km` : "Not set"],
+                ["Market Value", vehicle.market_value_estimate ? formatCurrency(vehicle.market_value_estimate) : "Ask staff"],
                 ["Media", `${allImages.length} item${allImages.length !== 1 ? "s" : ""}`],
               ]}
             />
@@ -357,10 +373,13 @@ function VehicleDetail() {
             <div style={{ display: "grid", gap: "7px" }}>
               {[
                 ["Status", isSold ? "Sold" : "In Stock"],
-                ["Investment", formatCurrency(investmentTotal)],
-                ["Purchase", purchase?.date || "Not set"],
-                ["Sale", sale?.date || (isSold ? "Not set" : "Not sold")],
-                ["Documents", documents.length],
+                ["Market Value", vehicle.market_value_estimate ? formatCurrency(vehicle.market_value_estimate) : "Ask staff"],
+                ...(financeVisible ? [
+                  ["Investment", formatCurrency(investmentTotal)],
+                  ["Purchase", purchase?.date || "Not set"],
+                  ["Sale", sale?.date || (isSold ? "Not set" : "Not sold")],
+                  ["Documents", documents.length],
+                ] : []),
                 ["Media", allImages.length],
               ].map(([label, value]) => (
                 <div key={label} style={{ display: "grid", gridTemplateColumns: "88px minmax(0, 1fr)", gap: "10px", alignItems: "center", minHeight: "30px", padding: "6px 8px", border: "1px solid var(--border)", borderRadius: "9px", background: "var(--surface)" }}>
@@ -371,16 +390,34 @@ function VehicleDetail() {
             </div>
           </Panel>
 
-          <Panel title="Finance Summary" icon={FiDollarSign} style={{ gridColumn: "2", gridRow: "2" }}>
+          {rtoLinks && (
+            <Panel title="RTO Services" icon={FiFileText} style={{ gridColumn: "2", gridRow: financeVisible ? "4" : "2" }}>
+              <div style={{ display: "grid", gap: "8px" }}>
+                <a className="btn-accent" href={rtoLinks.vehicle_info_url} target="_blank" rel="noreferrer" style={{ textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+                  Check Vehicle Info
+                  <FiArrowUpRight size={14} />
+                </a>
+                <a className="btn-ghost" href={rtoLinks.challan_url} target="_blank" rel="noreferrer" style={{ textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+                  Pay Challan
+                  <FiArrowUpRight size={14} />
+                </a>
+                <div style={{ color: "var(--text-muted)", fontSize: "12px", lineHeight: 1.5 }}>
+                  Opens the official Parivahan portal. Enter {vehicle.vehicle_number} there to continue.
+                </div>
+              </div>
+            </Panel>
+          )}
+
+          {financeVisible && <Panel title="Finance Summary" icon={FiDollarSign} style={{ gridColumn: "2", gridRow: "2" }}>
             <div className="vehicle-metric-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "8px" }}>
               <MetricCard label="Purchase" value={purchase?.amount} sub={purchase?.date} icon={FiDollarSign} />
               <MetricCard label="Total Expenses" value={total_expense} sub={`${expenses.length} item${expenses.length !== 1 ? "s" : ""}`} icon={FiActivity} />
               {isSold && <MetricCard label="Sale Price" value={sale?.amount} sub={sale?.date} icon={FiTrendingUp} color="var(--success)" />}
               <MetricCard label={isSold ? "Profit / Loss" : "Investment"} value={Math.abs(profit)} sub={isSold ? (profitPositive ? "Profit" : "Loss") : "Total invested"} icon={profitPositive ? FiTrendingUp : FiTrendingDown} color={isSold ? (profitPositive ? "var(--success)" : "var(--danger)") : "var(--accent)"} />
             </div>
-          </Panel>
+          </Panel>}
 
-          <Panel title="Expense Breakdown" icon={FiActivity} style={{ gridColumn: "2", gridRow: "3" }}>
+          {financeVisible && <Panel title="Expense Breakdown" icon={FiActivity} style={{ gridColumn: "2", gridRow: "3" }}>
             {expenses.length === 0 ? (
               <div style={{ color: "var(--text-muted)", fontSize: "13px", textAlign: "center", padding: "20px 0" }}>No expenses recorded</div>
             ) : (
@@ -402,10 +439,10 @@ function VehicleDetail() {
                 </div>
               </div>
             )}
-          </Panel>
+          </Panel>}
         </div>
 
-        <Panel title="Documents" icon={FiFileText}>
+        {financeVisible && <Panel title="Documents" icon={FiFileText}>
           {documents.length === 0 ? (
             <div style={{ color: "var(--text-muted)", fontSize: "13px" }}>No documents uploaded.</div>
           ) : (
@@ -445,7 +482,7 @@ function VehicleDetail() {
               )}
             </div>
           )}
-        </Panel>
+        </Panel>}
       </motion.div>
     </Layout>
   );

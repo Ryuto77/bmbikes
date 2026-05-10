@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import api from "../api/axios";
 import { getCachedVehicles, setCachedVehicles } from "../api/publicCache";
@@ -10,6 +10,7 @@ import {
   FiCheckCircle,
   FiClock,
   FiArrowUpRight,
+  FiFileText,
   FiLogIn,
   FiTruck,
 } from "react-icons/fi";
@@ -62,6 +63,8 @@ const SORT_OPTIONS = [
   { value: "expense_asc", label: "Expense low-high" },
   { value: "latest_expense_desc", label: "Latest expense date" },
 ];
+const PARIVAHAN_VEHICLE_INFO_URL = "https://parivahan.gov.in/parivahan/";
+const PARIVAHAN_CHALLAN_URL = "https://echallan.parivahan.gov.in/index/accused-challan";
 
 const numericValue = (vehicle, key) => Number(vehicle?.[key] || 0);
 const dateValue = (vehicle, key) => (vehicle?.[key] ? new Date(vehicle[key]).getTime() : 0);
@@ -125,12 +128,12 @@ function FleetFeature({ vehicles, total, inStock, sold, auth }) {
     ? [
         ["Year", vehicle.year || "Not set"],
         ["ODO", vehicle.km_driven ? `${Number(vehicle.km_driven).toLocaleString("en-IN")} km` : "Not set"],
-        ["Investment", formatCurrency(Number(vehicle.purchase_amount || 0) + Number(vehicle.total_expense || 0))],
+        ["Market", vehicle.market_value_estimate ? formatCurrency(vehicle.market_value_estimate) : "Ask staff"],
       ]
     : [
         ["Year", "-"],
         ["ODO", "-"],
-        ["Investment", "-"],
+        ["Market", "-"],
       ];
 
   useEffect(() => {
@@ -255,14 +258,14 @@ function FleetFeature({ vehicles, total, inStock, sold, auth }) {
             </div>
             <div>
               <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--text)" }}>{auth?.is_authenticated ? auth.username : "Login"}</div>
-              <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>{auth?.is_authenticated ? "Manage stock and add vehicles" : "Manage stock after signing in"}</div>
+              <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>{auth?.is_staff ? "Manage stock and add vehicles" : "Staff access required for stock management"}</div>
             </div>
           </div>
           <button
             className="btn-accent"
             onClick={() => {
               if (!auth?.checked) return;
-              if (auth?.is_authenticated) {
+              if (auth?.is_staff) {
                 navigate("/admin");
                 return;
               }
@@ -271,7 +274,7 @@ function FleetFeature({ vehicles, total, inStock, sold, auth }) {
             disabled={!auth?.checked}
             style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
           >
-            {!auth?.checked ? "Checking Access..." : auth?.is_authenticated ? "Open Stock Manager" : "Login"}
+            {!auth?.checked ? "Checking Access..." : auth?.is_staff ? "Open Stock Manager" : "Login"}
             <FiArrowUpRight size={14} />
           </button>
         </UICard>
@@ -285,6 +288,7 @@ function Dashboard() {
   const [auth, setAuth] = useState({ checked: false, is_authenticated: false, username: "" });
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
+  const [rtoNumber, setRtoNumber] = useState("");
   const [sortBy, setSortBy] = useState("purchase_date_desc");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -371,6 +375,16 @@ function Dashboard() {
   const total = vehicles.length;
   const sold = vehicles.filter((v) => v.status === "sold").length;
   const inStock = total - sold;
+  const visibleSortOptions = useMemo(() => (
+    auth.is_staff
+      ? SORT_OPTIONS
+      : SORT_OPTIONS.filter((option) => !/(purchase|sold|sale|expense)/i.test(option.value))
+  ), [auth.is_staff]);
+  useEffect(() => {
+    if (!visibleSortOptions.some((option) => option.value === sortBy)) {
+      setSortBy("model_asc");
+    }
+  }, [sortBy, visibleSortOptions]);
   return (
     <Layout>
       {/* Header */}
@@ -404,6 +418,27 @@ function Dashboard() {
       </div>
 
       <FleetFeature vehicles={vehicles} total={total} inStock={inStock} sold={sold} auth={auth} />
+
+      <UICard className="rto-tools-grid" style={{ padding: "16px", marginBottom: "22px", display: "grid", gridTemplateColumns: "minmax(220px, 1fr) auto auto", gap: "10px", alignItems: "center" }}>
+        <div style={{ position: "relative" }}>
+          <FiFileText size={15} color="var(--text-muted)" style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)" }} />
+          <input
+            className="input-base"
+            style={{ paddingLeft: "40px", textTransform: "uppercase" }}
+            placeholder="Vehicle number for RTO / challan"
+            value={rtoNumber}
+            onChange={(event) => setRtoNumber(event.target.value.toUpperCase())}
+          />
+        </div>
+        <a className="btn-ghost" href={PARIVAHAN_VEHICLE_INFO_URL} target="_blank" rel="noreferrer" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: "8px", justifyContent: "center" }}>
+          Check Info
+          <FiArrowUpRight size={14} />
+        </a>
+        <a className="btn-accent" href={PARIVAHAN_CHALLAN_URL} target="_blank" rel="noreferrer" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: "8px", justifyContent: "center" }}>
+          Pay Challan
+          <FiArrowUpRight size={14} />
+        </a>
+      </UICard>
 
       {/* Search + Filter row */}
       <div
@@ -467,7 +502,7 @@ function Dashboard() {
             onChange={(e) => setSortBy(e.target.value)}
             aria-label="Sort vehicles"
           >
-            {SORT_OPTIONS.map((option) => (
+            {visibleSortOptions.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>

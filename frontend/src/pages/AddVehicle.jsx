@@ -6,6 +6,7 @@ import { clearCachedAuthState, getCachedAuthState, setCachedAuthState } from "..
 import { clearPublicVehicleCache, notifyVehiclesChanged } from "../api/publicCache";
 import Layout from "../components/Layout";
 import usePageTitle from "../hooks/usePageTitle";
+import { VEHICLE_BRANDS, modelsForBrand } from "../data/vehicleCatalog";
 import {
   FiArrowRight,
   FiArrowLeft,
@@ -22,8 +23,9 @@ import {
 
 const STEPS = [
   { label: "Vehicle", icon: FiTruck, desc: "Basic details" },
-  { label: "Purchase", icon: FiDollarSign, desc: "Buy price & date" },
+  { label: "Purchase", icon: FiDollarSign, desc: "Buy price & seller" },
   { label: "Expenses", icon: FiList, desc: "Repair & service costs" },
+  { label: "Documents", icon: FiUpload, desc: "RC, insurance, Aadhaar" },
   { label: "Photos", icon: FiCamera, desc: "Cover and gallery images" },
 ];
 
@@ -66,7 +68,7 @@ function AddVehicle() {
     name: "",
   });
 
-  const [purchase, setPurchase] = useState({ amount: "", date: "" });
+  const [purchase, setPurchase] = useState({ amount: "", date: "", seller_name: "", seller_phone: "", seller_aadhaar: "" });
 
   const [expenses, setExpenses] = useState([]);
 
@@ -74,18 +76,19 @@ function AddVehicle() {
   const [coverPreview, setCoverPreview] = useState(null);
   const [extraImages, setExtraImages] = useState([]);
   const [extraPreviews, setExtraPreviews] = useState([]);
+  const [purchaseDocuments, setPurchaseDocuments] = useState([]);
 
   usePageTitle("Add Vehicle");
 
   useEffect(() => {
-    if (cachedAuth.checked && !cachedAuth.is_authenticated) {
+    if (cachedAuth.checked && !cachedAuth.is_staff) {
       navigate("/login", { replace: true, state: { from: { pathname: location.pathname, search: location.search, hash: location.hash } } });
       return undefined;
     }
 
     api.get("auth/status/").then((res) => {
       setCachedAuthState(res.data);
-      if (!res.data.is_authenticated) {
+      if (!res.data.is_staff) {
         clearCachedAuthState();
         navigate("/login", { replace: true, state: { from: { pathname: location.pathname, search: location.search, hash: location.hash } } });
         return;
@@ -95,7 +98,7 @@ function AddVehicle() {
       clearCachedAuthState();
       navigate("/login", { replace: true, state: { from: { pathname: location.pathname, search: location.search, hash: location.hash } } });
     });
-  }, [cachedAuth.checked, cachedAuth.is_authenticated, location.hash, location.pathname, location.search, navigate]);
+  }, [cachedAuth.checked, cachedAuth.is_staff, location.hash, location.pathname, location.search, navigate]);
 
   // Expense helpers
   const addExpense = () => setExpenses([...expenses, { type: "", amount: "", date: "" }]);
@@ -154,6 +157,28 @@ function AddVehicle() {
     if (fileRef.current) fileRef.current.value = "";
   };
 
+  const handlePurchaseDocumentsChange = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    setPurchaseDocuments((current) => [
+      ...current,
+      ...files.map((file) => ({ title: file.name.replace(/\.[^.]+$/, ""), file })),
+    ]);
+    e.target.value = "";
+  };
+
+  const updatePurchaseDocument = (index, key, value) => {
+    setPurchaseDocuments((current) => {
+      const next = [...current];
+      next[index] = { ...next[index], [key]: value };
+      return next;
+    });
+  };
+
+  const removePurchaseDocument = (index) => {
+    setPurchaseDocuments((current) => current.filter((_, i) => i !== index));
+  };
+
   const canNext = () => {
     if (step === 0) return vehicle.vehicle_number.trim() && vehicle.brand.trim() && vehicle.model.trim();
     if (step === 1) return purchase.amount && purchase.date;
@@ -185,6 +210,9 @@ function AddVehicle() {
           vehicle: vehicleId,
           amount: parseFloat(purchase.amount),
           date: purchase.date,
+          seller_name: purchase.seller_name,
+          seller_phone: purchase.seller_phone,
+          seller_aadhaar: purchase.seller_aadhaar,
         });
       }
 
@@ -198,6 +226,15 @@ function AddVehicle() {
             date: exp.date,
           });
         }
+      }
+
+      for (const document of purchaseDocuments) {
+        if (!document.file || !document.title.trim()) continue;
+        const payload = new FormData();
+        payload.append("title", document.title.trim());
+        payload.append("document_stage", "purchase");
+        payload.append("file", document.file);
+        await api.post(`vehicles/${vehicleId}/upload-document/`, payload, { headers: { "Content-Type": "multipart/form-data" } });
       }
 
       clearPublicVehicleCache(res.data.vehicle_number);
@@ -377,11 +414,17 @@ function AddVehicle() {
                 </div>
                 <div>
                   <FieldLabel required>Brand</FieldLabel>
-                  <input className="input-base" placeholder="e.g. Toyota" value={vehicle.brand} onChange={(e) => setVehicle({ ...vehicle, brand: e.target.value })} />
+                  <input className="input-base" list="vehicle-brand-options" placeholder="e.g. Toyota" value={vehicle.brand} onChange={(e) => setVehicle({ ...vehicle, brand: e.target.value })} />
+                  <datalist id="vehicle-brand-options">
+                    {VEHICLE_BRANDS.map((brand) => <option key={brand} value={brand} />)}
+                  </datalist>
                 </div>
                 <div>
                   <FieldLabel required>Model</FieldLabel>
-                  <input className="input-base" placeholder="e.g. Innova" value={vehicle.model} onChange={(e) => setVehicle({ ...vehicle, model: e.target.value })} />
+                  <input className="input-base" list="vehicle-model-options" placeholder="e.g. Innova" value={vehicle.model} onChange={(e) => setVehicle({ ...vehicle, model: e.target.value })} />
+                  <datalist id="vehicle-model-options">
+                    {modelsForBrand(vehicle.brand).map((model) => <option key={model} value={model} />)}
+                  </datalist>
                 </div>
                 <div>
                   <FieldLabel>Year</FieldLabel>
@@ -420,6 +463,18 @@ function AddVehicle() {
                     onChange={(e) => setPurchase({ ...purchase, date: e.target.value })}
                     style={{ colorScheme: "dark" }}
                   />
+                </div>
+                <div>
+                  <FieldLabel>Seller Name</FieldLabel>
+                  <input className="input-base" value={purchase.seller_name} onChange={(e) => setPurchase({ ...purchase, seller_name: e.target.value })} placeholder="Seller name" />
+                </div>
+                <div>
+                  <FieldLabel>Seller Phone</FieldLabel>
+                  <input className="input-base" value={purchase.seller_phone} onChange={(e) => setPurchase({ ...purchase, seller_phone: e.target.value })} placeholder="Phone number" />
+                </div>
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <FieldLabel>Seller Aadhaar</FieldLabel>
+                  <input className="input-base" value={purchase.seller_aadhaar} onChange={(e) => setPurchase({ ...purchase, seller_aadhaar: e.target.value })} placeholder="Aadhaar number" />
                 </div>
 
                 {purchase.amount && (
@@ -566,8 +621,30 @@ function AddVehicle() {
               </div>
             )}
 
-            {/* ── Step 3: Photos ── */}
             {step === 3 && (
+              <div style={{ display: "grid", gap: "14px" }}>
+                <input className="input-base" type="file" accept=".pdf,.jpg,.jpeg,application/pdf,image/jpeg" multiple onChange={handlePurchaseDocumentsChange} />
+                {purchaseDocuments.length === 0 ? (
+                  <div style={{ color: "var(--text-muted)", fontSize: "13px", padding: "18px", border: "1px dashed var(--border)", borderRadius: "12px", textAlign: "center" }}>
+                    Add purchase documents such as RC, insurance, seller Aadhaar, invoice, or agreement.
+                  </div>
+                ) : (
+                  <div style={{ display: "grid", gap: "10px" }}>
+                    {purchaseDocuments.map((document, index) => (
+                      <div key={`${document.file.name}-${index}`} style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: "8px", alignItems: "center", padding: "10px", border: "1px solid var(--border)", borderRadius: "10px", background: "var(--surface2)" }}>
+                        <input className="input-base" value={document.title} onChange={(e) => updatePurchaseDocument(index, "title", e.target.value)} placeholder="Document title" />
+                        <button className="btn-ghost" type="button" onClick={() => removePurchaseDocument(index)} style={{ padding: "10px", color: "var(--danger)", display: "flex" }}>
+                          <FiTrash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Step 4: Photos ── */}
+            {step === 4 && (
               <div>
                 <input
                   ref={fileRef}

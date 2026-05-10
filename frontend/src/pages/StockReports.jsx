@@ -73,7 +73,7 @@ function StockReports() {
   const [vehicles, setVehicles] = useState([]);
   const [activityLogs, setActivityLogs] = useState([]);
   const [auth, setAuth] = useState(() => cachedAuth);
-  const [loading, setLoading] = useState(!cachedAuth.checked || cachedAuth.is_authenticated);
+  const [loading, setLoading] = useState(!cachedAuth.checked || cachedAuth.is_staff);
   const [activityLoading, setActivityLoading] = useState(false);
   const [auditExpanded, setAuditExpanded] = useState(false);
 
@@ -92,7 +92,7 @@ function StockReports() {
   };
 
   useEffect(() => {
-    if (cachedAuth.checked && cachedAuth.is_authenticated) {
+    if (cachedAuth.checked && cachedAuth.is_staff) {
       setActivityLoading(true);
       Promise.allSettled([api.get("vehicles/"), api.get("activity/")]).then(([vehicleResult, activityResult]) => {
         if (vehicleResult.status === "fulfilled") setVehicles(vehicleResult.value.data);
@@ -107,7 +107,7 @@ function StockReports() {
       const nextAuth = { checked: true, ...res.data };
       setAuth(nextAuth);
       setCachedAuthState(nextAuth);
-      if (res.data.is_authenticated) {
+      if (res.data.is_staff) {
         setActivityLoading(true);
         Promise.allSettled([api.get("vehicles/"), api.get("activity/")]).then(([vehicleResult, activityResult]) => {
           if (vehicleResult.status === "fulfilled") setVehicles(vehicleResult.value.data);
@@ -124,11 +124,11 @@ function StockReports() {
       clearCachedAuthState();
       setLoading(false);
     });
-  }, [cachedAuth.checked, cachedAuth.is_authenticated]);
+  }, [cachedAuth.checked, cachedAuth.is_staff]);
 
   useEffect(() => {
     const refreshReports = () => {
-      if (!auth.is_authenticated) return;
+      if (!auth.is_staff) return;
       Promise.allSettled([api.get("vehicles/"), api.get("activity/")]).then(([vehicleResult, activityResult]) => {
         if (vehicleResult.status === "fulfilled") setVehicles(vehicleResult.value.data);
         if (activityResult.status === "fulfilled") setActivityLogs(activityResult.value.data);
@@ -136,7 +136,7 @@ function StockReports() {
     };
     window.addEventListener("vehicles-changed", refreshReports);
     return () => window.removeEventListener("vehicles-changed", refreshReports);
-  }, [auth.is_authenticated]);
+  }, [auth.is_staff]);
 
   const visibleActivityLogs = auditExpanded ? activityLogs : activityLogs.slice(0, 5);
 
@@ -276,7 +276,7 @@ function StockReports() {
 
       {loading || !auth.checked ? (
         <UICard style={{ padding: "32px", color: "var(--text-muted)", textAlign: "center" }}>Loading reports...</UICard>
-      ) : !auth.is_authenticated ? (
+      ) : !auth.is_staff ? (
         <UICard style={{ padding: "32px", color: "var(--text-muted)", textAlign: "center", display: "grid", justifyItems: "center", gap: "14px" }}>
           <div>Login to view reports.</div>
           <button

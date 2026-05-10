@@ -56,10 +56,11 @@ export function clearCachedVehicles() {
 
 export function getCachedVehicleDetail(number) {
   const cached = readCache(`${VEHICLE_DETAIL_PREFIX}${String(number || "").toUpperCase()}`);
-  return cached?.cached_public ? null : cached;
+  return cached?.finance_visible ? null : cached;
 }
 
 export function setCachedVehicleDetail(number, data) {
+  if (data?.finance_visible) return;
   writeCache(`${VEHICLE_DETAIL_PREFIX}${String(number || "").toUpperCase()}`, publicVehicleDetail(data));
 }
 

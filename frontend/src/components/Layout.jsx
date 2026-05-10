@@ -59,12 +59,12 @@ function Layout({ children }) {
   }, [flashMessage]);
 
   useEffect(() => {
-    if (!auth.checked || auth.is_authenticated) return;
+    if (!auth.checked || auth.is_staff) return;
     const isProtectedPage = protectedPrefixes.some((prefix) => location.pathname.startsWith(prefix));
     if (isProtectedPage) {
       navigate("/", { replace: true });
     }
-  }, [auth.checked, auth.is_authenticated, location.pathname, navigate, protectedPrefixes]);
+  }, [auth.checked, auth.is_staff, location.pathname, navigate, protectedPrefixes]);
 
   const goToAddVehicle = () => {
     setMenuOpen(false);
@@ -123,7 +123,7 @@ function Layout({ children }) {
       if (!event.altKey || event.ctrlKey || event.metaKey) return;
 
       const protectedNavigate = (path) => {
-        if (auth.is_authenticated) {
+        if (auth.is_staff) {
           navigate(path);
           return;
         }
@@ -147,7 +147,7 @@ function Layout({ children }) {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [auth.is_authenticated, navigate, theme, location.pathname, location.search, location.hash]);
+  }, [auth.is_staff, navigate, theme, location.pathname, location.search, location.hash]);
 
   const navLinks = useMemo(() => [{ to: "/", label: "Fleet", icon: FiGrid }], []);
   const accountButtonStyle = {
@@ -253,18 +253,18 @@ function Layout({ children }) {
                       boxShadow: "0 18px 50px rgba(0,0,0,0.28)",
                     }}
                   >
-                    <button className="menu-action" onClick={goToAddVehicle}>
+                    {auth.is_staff && <button className="menu-action" onClick={goToAddVehicle}>
                       <FiPlus size={14} />
                       Add New Vehicle
-                    </button>
-                    <button className="menu-action" onClick={goToStockManager}>
+                    </button>}
+                    {auth.is_staff && <button className="menu-action" onClick={goToStockManager}>
                       <FiPackage size={14} />
                       Stock Manager
-                    </button>
-                    <button className="menu-action" onClick={goToReports}>
+                    </button>}
+                    {auth.is_staff && <button className="menu-action" onClick={goToReports}>
                       <FiBarChart2 size={14} />
                       Reports
-                    </button>
+                    </button>}
                     <button className="menu-action" onClick={() => { setShortcutsOpen(true); setMenuOpen(false); }}>
                       <FiCommand size={14} />
                       Shortcuts

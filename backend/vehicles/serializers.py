@@ -77,7 +77,7 @@ class VehicleDocumentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = VehicleDocument
-        fields = ['id', 'title', 'file', 'created_at']
+        fields = ['id', 'title', 'document_stage', 'file', 'created_at']
 
 
 class ActivityLogSerializer(serializers.ModelSerializer):
@@ -109,7 +109,7 @@ class VehicleSerializer(serializers.ModelSerializer):
 
     def can_view_finance(self):
         request = self.context.get("request")
-        return bool(request and request.user and request.user.is_authenticated)
+        return bool(request and request.user and request.user.is_authenticated and request.user.is_staff)
 
     def get_status(self, obj):
         from transactions.models import Sale

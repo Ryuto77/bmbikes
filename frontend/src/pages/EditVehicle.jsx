@@ -6,6 +6,7 @@ import { clearCachedAuthState, getCachedAuthState, setCachedAuthState } from "..
 import { clearPublicVehicleCache, notifyVehiclesChanged } from "../api/publicCache";
 import Layout from "../components/Layout";
 import usePageTitle from "../hooks/usePageTitle";
+import { VEHICLE_BRANDS, modelsForBrand } from "../data/vehicleCatalog";
 import {
   FiArrowLeft,
   FiArrowRight,
@@ -70,8 +71,8 @@ function EditVehicle() {
   const [saving, setSaving] = useState(false);
   const [step, setStep] = useState(0);
   const [vehicle, setVehicle] = useState(null);
-  const [purchase, setPurchase] = useState({ id: null, amount: "", date: "" });
-  const [sale, setSale] = useState({ id: null, amount: "", date: "" });
+  const [purchase, setPurchase] = useState({ id: null, amount: "", date: "", seller_name: "", seller_phone: "", seller_aadhaar: "" });
+  const [sale, setSale] = useState({ id: null, amount: "", date: "", buyer_name: "", buyer_phone: "", buyer_aadhaar: "" });
   const [expenses, setExpenses] = useState([]);
   const [coverImage, setCoverImage] = useState(null);
   const [coverPreview, setCoverPreview] = useState(null);
@@ -82,14 +83,14 @@ function EditVehicle() {
   usePageTitle(vehicle?.vehicle_number ? `Edit ${vehicle.vehicle_number}` : "Edit Vehicle");
 
   useEffect(() => {
-    if (cachedAuth.checked && !cachedAuth.is_authenticated) {
+    if (cachedAuth.checked && !cachedAuth.is_staff) {
       navigate("/login", { replace: true, state: { from: { pathname: location.pathname, search: location.search, hash: location.hash } } });
       return undefined;
     }
 
     api.get("auth/status/").then((res) => {
       setCachedAuthState(res.data);
-      if (!res.data.is_authenticated) {
+      if (!res.data.is_staff) {
         clearCachedAuthState();
         navigate("/login", { replace: true, state: { from: { pathname: location.pathname, search: location.search, hash: location.hash } } });
         return;
@@ -99,7 +100,7 @@ function EditVehicle() {
       clearCachedAuthState();
       navigate("/login", { replace: true, state: { from: { pathname: location.pathname, search: location.search, hash: location.hash } } });
     });
-  }, [cachedAuth.checked, cachedAuth.is_authenticated, location.hash, location.pathname, location.search, navigate]);
+  }, [cachedAuth.checked, cachedAuth.is_staff, location.hash, location.pathname, location.search, navigate]);
 
   useEffect(() => {
     if (checkingAuth) return;
@@ -118,11 +119,17 @@ function EditVehicle() {
         id: data.purchase?.id || null,
         amount: data.purchase?.amount || "",
         date: data.purchase?.date || "",
+        seller_name: data.purchase?.seller_name || "",
+        seller_phone: data.purchase?.seller_phone || "",
+        seller_aadhaar: data.purchase?.seller_aadhaar || "",
       });
       setSale({
         id: data.sale?.id || null,
         amount: data.sale?.amount || "",
         date: data.sale?.date || "",
+        buyer_name: data.sale?.buyer_name || "",
+        buyer_phone: data.sale?.buyer_phone || "",
+        buyer_aadhaar: data.sale?.buyer_aadhaar || "",
       });
       setExpenses((data.expenses || []).map((expense) => ({
         id: expense.id || null,
@@ -200,6 +207,9 @@ function EditVehicle() {
   const saveFinance = async (vehicleId) => {
     if (purchase.amount && purchase.date) {
       const payload = { vehicle: vehicleId, amount: parseFloat(purchase.amount), date: purchase.date };
+      payload.seller_name = purchase.seller_name;
+      payload.seller_phone = purchase.seller_phone;
+      payload.seller_aadhaar = purchase.seller_aadhaar;
       if (purchase.id) await api.patch(`purchase/${purchase.id}/`, payload);
       else await api.post("purchase/", payload);
     }
@@ -207,6 +217,9 @@ function EditVehicle() {
     const hasSaleValue = sale.amount !== "" && Number(sale.amount) > 0;
     if (hasSaleValue) {
       const payload = { vehicle: vehicleId, amount: parseFloat(sale.amount), date: sale.date || new Date().toISOString().slice(0, 10) };
+      payload.buyer_name = sale.buyer_name;
+      payload.buyer_phone = sale.buyer_phone;
+      payload.buyer_aadhaar = sale.buyer_aadhaar;
       if (sale.id) await api.patch(`sale/${sale.id}/`, payload);
       else await api.post("sale/", payload);
     } else if (sale.id) {
@@ -328,11 +341,17 @@ function EditVehicle() {
                 </div>
                 <div>
                   <FieldLabel required>Brand</FieldLabel>
-                  <input className="input-base" value={vehicle.brand} onChange={(e) => setVehicle({ ...vehicle, brand: e.target.value })} />
+                  <input className="input-base" list="edit-vehicle-brand-options" value={vehicle.brand} onChange={(e) => setVehicle({ ...vehicle, brand: e.target.value })} />
+                  <datalist id="edit-vehicle-brand-options">
+                    {VEHICLE_BRANDS.map((brand) => <option key={brand} value={brand} />)}
+                  </datalist>
                 </div>
                 <div>
                   <FieldLabel required>Model</FieldLabel>
-                  <input className="input-base" value={vehicle.model} onChange={(e) => setVehicle({ ...vehicle, model: e.target.value })} />
+                  <input className="input-base" list="edit-vehicle-model-options" value={vehicle.model} onChange={(e) => setVehicle({ ...vehicle, model: e.target.value })} />
+                  <datalist id="edit-vehicle-model-options">
+                    {modelsForBrand(vehicle.brand).map((model) => <option key={model} value={model} />)}
+                  </datalist>
                 </div>
                 <div>
                   <FieldLabel>Year</FieldLabel>
@@ -355,6 +374,18 @@ function EditVehicle() {
                   <FieldLabel>Purchase Date</FieldLabel>
                   <input className="input-base" type="date" value={purchase.date || ""} onChange={(e) => setPurchase({ ...purchase, date: e.target.value })} />
                 </div>
+                <div>
+                  <FieldLabel>Seller Name</FieldLabel>
+                  <input className="input-base" value={purchase.seller_name} onChange={(e) => setPurchase({ ...purchase, seller_name: e.target.value })} />
+                </div>
+                <div>
+                  <FieldLabel>Seller Phone</FieldLabel>
+                  <input className="input-base" value={purchase.seller_phone} onChange={(e) => setPurchase({ ...purchase, seller_phone: e.target.value })} />
+                </div>
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <FieldLabel>Seller Aadhaar</FieldLabel>
+                  <input className="input-base" value={purchase.seller_aadhaar} onChange={(e) => setPurchase({ ...purchase, seller_aadhaar: e.target.value })} />
+                </div>
               </div>
             )}
 
@@ -368,6 +399,18 @@ function EditVehicle() {
                   <div>
                     <FieldLabel>Sold Date</FieldLabel>
                     <input className="input-base" type="date" value={sale.date || ""} onChange={(e) => setSale({ ...sale, date: e.target.value })} />
+                  </div>
+                  <div>
+                    <FieldLabel>Buyer Name</FieldLabel>
+                    <input className="input-base" value={sale.buyer_name} onChange={(e) => setSale({ ...sale, buyer_name: e.target.value })} />
+                  </div>
+                  <div>
+                    <FieldLabel>Buyer Phone</FieldLabel>
+                    <input className="input-base" value={sale.buyer_phone} onChange={(e) => setSale({ ...sale, buyer_phone: e.target.value })} />
+                  </div>
+                  <div style={{ gridColumn: "1 / -1" }}>
+                    <FieldLabel>Buyer Aadhaar</FieldLabel>
+                    <input className="input-base" value={sale.buyer_aadhaar} onChange={(e) => setSale({ ...sale, buyer_aadhaar: e.target.value })} />
                   </div>
                 </div>
                 <div style={{ color: "var(--text-muted)", fontSize: "12px" }}>

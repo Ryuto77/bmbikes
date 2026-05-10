@@ -231,6 +231,10 @@ body {
     grid-template-columns: 1fr !important;
   }
 
+  .rto-tools-grid {
+    grid-template-columns: 1fr !important;
+  }
+
   .reports-main-grid {
     grid-template-columns: 1fr !important;
   }

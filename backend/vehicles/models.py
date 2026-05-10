@@ -8,6 +8,9 @@ class Vehicle(models.Model):
     model = models.CharField(max_length=50)
     year = models.IntegerField()
     km_driven = models.IntegerField(null=True, blank=True)
+    market_value_estimate = models.FloatField(null=True, blank=True)
+    market_value_notes = models.TextField(blank=True)
+    market_value_updated_at = models.DateTimeField(null=True, blank=True)
     cover_image = models.ImageField(upload_to='vehicles/', null=True, blank=True)
     is_archived = models.BooleanField(default=False)
     archived_at = models.DateTimeField(null=True, blank=True)
@@ -28,8 +31,15 @@ class VehicleImage(models.Model):
 
 
 class VehicleDocument(models.Model):
+    DOCUMENT_STAGE_CHOICES = [
+        ("general", "General"),
+        ("purchase", "Purchase"),
+        ("sale", "Sale"),
+    ]
+
     vehicle = models.ForeignKey('vehicles.Vehicle', on_delete=models.CASCADE, related_name='documents')
     title = models.CharField(max_length=100)
+    document_stage = models.CharField(max_length=20, choices=DOCUMENT_STAGE_CHOICES, default="general")
     file = models.FileField(upload_to='vehicle_documents/')
     created_at = models.DateTimeField(auto_now_add=True)
 

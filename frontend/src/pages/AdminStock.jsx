@@ -6,6 +6,7 @@ import { clearCachedVehicleDetail, clearPublicVehicleCache, notifyVehiclesChange
 import Layout from "../components/Layout";
 import { UICard } from "../components/ui";
 import usePageTitle from "../hooks/usePageTitle";
+import { VEHICLE_BRANDS, modelsForBrand } from "../data/vehicleCatalog";
 import {
   FiArrowDown,
   FiArrowRight,
@@ -47,12 +48,14 @@ const emptyForm = {
   model: "",
   year: new Date().getFullYear(),
   km_driven: "",
+  market_value_estimate: "",
+  market_value_notes: "",
   cover_image: null,
 };
 
 const emptyFinance = {
-  purchase: { id: null, amount: "", date: "" },
-  sale: { id: null, amount: "", date: "" },
+  purchase: { id: null, amount: "", date: "", seller_name: "", seller_phone: "", seller_aadhaar: "" },
+  sale: { id: null, amount: "", date: "", buyer_name: "", buyer_phone: "", buyer_aadhaar: "" },
   expenses: [],
 };
 
@@ -196,7 +199,7 @@ function AdminStock() {
   const [vehicles, setVehicles] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [finance, setFinance] = useState(emptyFinance);
-  const [documentForm, setDocumentForm] = useState({ title: "", file: null });
+  const [documentForm, setDocumentForm] = useState({ title: "", document_stage: "general", file: null });
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
   const [imageError, setImageError] = useState("");
@@ -344,11 +347,17 @@ function AdminStock() {
         id: res.data.purchase?.id || null,
         amount: res.data.purchase?.amount || "",
         date: res.data.purchase?.date || "",
+        seller_name: res.data.purchase?.seller_name || "",
+        seller_phone: res.data.purchase?.seller_phone || "",
+        seller_aadhaar: res.data.purchase?.seller_aadhaar || "",
       },
       sale: {
         id: res.data.sale?.id || null,
         amount: res.data.sale?.amount || "",
         date: res.data.sale?.date || "",
+        buyer_name: res.data.sale?.buyer_name || "",
+        buyer_phone: res.data.sale?.buyer_phone || "",
+        buyer_aadhaar: res.data.sale?.buyer_aadhaar || "",
       },
       expenses: (res.data.expenses || []).map((expense) => ({
         id: expense.id || null,
@@ -368,10 +377,12 @@ function AdminStock() {
       model: vehicle.model || "",
       year: vehicle.year || new Date().getFullYear(),
       km_driven: vehicle.km_driven || "",
+      market_value_estimate: vehicle.market_value_estimate || "",
+      market_value_notes: vehicle.market_value_notes || "",
       cover_image: null,
     });
     setEditStep("basic");
-    setDocumentForm({ title: "", file: null });
+    setDocumentForm({ title: "", document_stage: "general", file: null });
     await loadFinance(vehicle.vehicle_number);
   };
 
@@ -380,7 +391,7 @@ function AdminStock() {
     setFinance(emptyFinance);
     setEditStep("basic");
     setImageError("");
-    setDocumentForm({ title: "", file: null });
+    setDocumentForm({ title: "", document_stage: "general", file: null });
   };
 
   const handleCoverChange = (e) => {
@@ -428,6 +439,8 @@ function AdminStock() {
       payload.append("year", form.year);
       payload.append("name", form.name.trim() || `${form.brand.trim()} ${form.model.trim()}`);
       if (form.km_driven !== "") payload.append("km_driven", form.km_driven);
+      if (form.market_value_estimate !== "") payload.append("market_value_estimate", form.market_value_estimate);
+      payload.append("market_value_notes", form.market_value_notes || "");
       if (form.cover_image) payload.append("cover_image", form.cover_image);
 
       const res = await api.patch(`vehicles/${form.id}/`, payload, { headers: { "Content-Type": "multipart/form-data" } });
@@ -445,7 +458,14 @@ function AdminStock() {
 
   const saveFinance = async (vehicleId) => {
     if (finance.purchase.amount && finance.purchase.date) {
-      const payload = { vehicle: vehicleId, amount: parseFloat(finance.purchase.amount), date: finance.purchase.date };
+      const payload = {
+        vehicle: vehicleId,
+        amount: parseFloat(finance.purchase.amount),
+        date: finance.purchase.date,
+        seller_name: finance.purchase.seller_name,
+        seller_phone: finance.purchase.seller_phone,
+        seller_aadhaar: finance.purchase.seller_aadhaar,
+      };
       if (finance.purchase.id) await api.patch(`purchase/${finance.purchase.id}/`, payload);
       else await api.post("purchase/", payload);
     }
@@ -453,7 +473,14 @@ function AdminStock() {
     const hasSaleValue = finance.sale.amount !== "" && Number(finance.sale.amount) > 0;
     const saleDate = finance.sale.date || today();
     if (hasSaleValue) {
-      const payload = { vehicle: vehicleId, amount: parseFloat(finance.sale.amount), date: saleDate };
+      const payload = {
+        vehicle: vehicleId,
+        amount: parseFloat(finance.sale.amount),
+        date: saleDate,
+        buyer_name: finance.sale.buyer_name,
+        buyer_phone: finance.sale.buyer_phone,
+        buyer_aadhaar: finance.sale.buyer_aadhaar,
+      };
       if (finance.sale.id) await api.patch(`sale/${finance.sale.id}/`, payload);
       else await api.post("sale/", payload);
     } else if (finance.sale.id) {
@@ -501,7 +528,7 @@ function AdminStock() {
 
   const updateVehicleStatus = async (vehicle, status) => {
     if (status === "sold") {
-      setSoldModal({ vehicle, amount: vehicle.sale_amount || "", date: vehicle.sale_date || today() });
+      setSoldModal({ vehicle, amount: vehicle.sale_amount || "", date: vehicle.sale_date || today(), buyer_name: "", buyer_phone: "", buyer_aadhaar: "" });
       return;
     }
 
@@ -518,10 +545,10 @@ function AdminStock() {
 
   const submitSoldModal = async (e) => {
     e.preventDefault();
-    const { vehicle, amount, date } = soldModal;
+    const { vehicle, amount, date, buyer_name, buyer_phone, buyer_aadhaar } = soldModal;
     setUpdatingStatusId(vehicle.id);
     try {
-      const res = await api.post(`vehicles/${vehicle.id}/status/`, { status: "sold", amount: Number(amount || 0), date: date || today() });
+      const res = await api.post(`vehicles/${vehicle.id}/status/`, { status: "sold", amount: Number(amount || 0), date: date || today(), buyer_name, buyer_phone, buyer_aadhaar });
       refreshVehicle(res.data);
       setSoldModal(null);
     } catch (err) {
@@ -584,10 +611,11 @@ function AdminStock() {
     try {
       const payload = new FormData();
       payload.append("title", documentForm.title);
+      payload.append("document_stage", documentForm.document_stage);
       payload.append("file", documentForm.file);
       const res = await api.post(`vehicles/${form.id}/upload-document/`, payload, { headers: { "Content-Type": "multipart/form-data" } });
       refreshVehicle(res.data);
-      setDocumentForm({ title: "", file: null });
+      setDocumentForm({ title: "", document_stage: "general", file: null });
       e.target.reset();
     } catch (err) {
       alert(err.response?.data?.error || "Unable to upload document.");
@@ -609,7 +637,7 @@ function AdminStock() {
     );
   }
 
-  if (!auth.is_authenticated) {
+  if (!auth.is_staff) {
     return <Navigate to="/login" replace state={{ from: { pathname: location.pathname, search: location.search, hash: location.hash } }} />;
   }
 
@@ -660,10 +688,16 @@ function AdminStock() {
                     </Field>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                       <Field label="Brand" required>
-                        <input className="input-base" value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} required />
+                        <input className="input-base" list="stock-brand-options" value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} required />
+                        <datalist id="stock-brand-options">
+                          {VEHICLE_BRANDS.map((brand) => <option key={brand} value={brand} />)}
+                        </datalist>
                       </Field>
                       <Field label="Model" required>
-                        <input className="input-base" value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} required />
+                        <input className="input-base" list="stock-model-options" value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} required />
+                        <datalist id="stock-model-options">
+                          {modelsForBrand(form.brand).map((model) => <option key={model} value={model} />)}
+                        </datalist>
                       </Field>
                     </div>
                     <Field label="Display Name">
@@ -677,6 +711,12 @@ function AdminStock() {
                         <input className="input-base" type="number" value={form.km_driven} onChange={(e) => setForm({ ...form, km_driven: e.target.value })} />
                       </Field>
                     </div>
+                    <Field label="Market Value Estimate">
+                      <input className="input-base" type="number" value={form.market_value_estimate} onChange={(e) => setForm({ ...form, market_value_estimate: e.target.value })} placeholder="Estimated public market value" />
+                    </Field>
+                    <Field label="Market Value Notes">
+                      <textarea className="input-base" value={form.market_value_notes} onChange={(e) => setForm({ ...form, market_value_notes: e.target.value })} rows={3} placeholder="Source, date, or staff notes" />
+                    </Field>
                     <Field label="Cover Image">
                       <input className="input-base" type="file" accept="image/*" onChange={handleCoverChange} />
                       <div style={{ marginTop: "6px", color: imageError ? "var(--danger)" : "var(--text-muted)", fontSize: "12px" }}>
@@ -695,6 +735,17 @@ function AdminStock() {
                       </Field>
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                      <Field label="Seller Name">
+                        <input className="input-base" value={finance.purchase.seller_name} onChange={(e) => setFinance({ ...finance, purchase: { ...finance.purchase, seller_name: e.target.value } })} />
+                      </Field>
+                      <Field label="Seller Phone">
+                        <input className="input-base" value={finance.purchase.seller_phone} onChange={(e) => setFinance({ ...finance, purchase: { ...finance.purchase, seller_phone: e.target.value } })} />
+                      </Field>
+                    </div>
+                    <Field label="Seller Aadhaar">
+                      <input className="input-base" value={finance.purchase.seller_aadhaar} onChange={(e) => setFinance({ ...finance, purchase: { ...finance.purchase, seller_aadhaar: e.target.value } })} />
+                    </Field>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                       <Field label="Sold Value">
                         <input className="input-base" type="number" value={finance.sale.amount} onChange={(e) => setFinance({ ...finance, sale: { ...finance.sale, amount: e.target.value } })} />
                       </Field>
@@ -702,6 +753,17 @@ function AdminStock() {
                         <input className="input-base" type="date" value={finance.sale.date || ""} onChange={(e) => setFinance({ ...finance, sale: { ...finance.sale, date: e.target.value } })} />
                       </Field>
                     </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                      <Field label="Buyer Name">
+                        <input className="input-base" value={finance.sale.buyer_name} onChange={(e) => setFinance({ ...finance, sale: { ...finance.sale, buyer_name: e.target.value } })} />
+                      </Field>
+                      <Field label="Buyer Phone">
+                        <input className="input-base" value={finance.sale.buyer_phone} onChange={(e) => setFinance({ ...finance, sale: { ...finance.sale, buyer_phone: e.target.value } })} />
+                      </Field>
+                    </div>
+                    <Field label="Buyer Aadhaar">
+                      <input className="input-base" value={finance.sale.buyer_aadhaar} onChange={(e) => setFinance({ ...finance, sale: { ...finance.sale, buyer_aadhaar: e.target.value } })} />
+                    </Field>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px" }}>
                       <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Expenses</span>
                       <button className="btn-ghost" type="button" onClick={addExpense} style={{ padding: "8px 10px", display: "flex", alignItems: "center", gap: "6px" }}>
@@ -769,6 +831,13 @@ function AdminStock() {
                   <Field label="Document Title" required>
                     <input className="input-base" value={documentForm.title} onChange={(e) => setDocumentForm({ ...documentForm, title: e.target.value })} placeholder="RC, insurance, invoice..." />
                   </Field>
+                  <Field label="Document Stage" required>
+                    <select className="input-base" value={documentForm.document_stage} onChange={(e) => setDocumentForm({ ...documentForm, document_stage: e.target.value })}>
+                      <option value="general">General</option>
+                      <option value="purchase">Purchase</option>
+                      <option value="sale">Sale</option>
+                    </select>
+                  </Field>
                   <Field label="Document File" required>
                     <input className="input-base" type="file" accept=".pdf,.jpg,.jpeg,application/pdf,image/jpeg" onChange={(e) => setDocumentForm({ ...documentForm, file: e.target.files[0] || null })} />
                   </Field>
@@ -782,7 +851,7 @@ function AdminStock() {
                     <div style={{ color: "var(--text-muted)", fontSize: "13px" }}>No documents uploaded.</div>
                   ) : selectedVehicle.documents.map((document) => (
                     <div key={document.id} style={{ display: "flex", alignItems: "center", gap: "10px", justifyContent: "space-between", padding: "10px", border: "1px solid var(--border)", borderRadius: "10px", background: "var(--surface2)" }}>
-                      <a href={document.file} target="_blank" rel="noreferrer" style={{ color: "var(--text)", textDecoration: "none", fontWeight: 700, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{document.title}</a>
+                      <a href={document.file} target="_blank" rel="noreferrer" style={{ color: "var(--text)", textDecoration: "none", fontWeight: 700, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{document.title} <span style={{ color: "var(--text-muted)", fontSize: "11px" }}>({document.document_stage || "general"})</span></a>
                       <button className="btn-ghost" type="button" onClick={() => deleteDocument(document.id)} style={{ padding: "8px", color: "var(--danger)", display: "flex" }}>
                         <FiTrash2 size={14} />
                       </button>
@@ -935,6 +1004,17 @@ function AdminStock() {
             <Field label="Sale Date" required>
               <input className="input-base" type="date" value={soldModal.date} onChange={(e) => setSoldModal({ ...soldModal, date: e.target.value })} required />
             </Field>
+            <Field label="Buyer Name">
+              <input className="input-base" value={soldModal.buyer_name} onChange={(e) => setSoldModal({ ...soldModal, buyer_name: e.target.value })} />
+            </Field>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+              <Field label="Buyer Phone">
+                <input className="input-base" value={soldModal.buyer_phone} onChange={(e) => setSoldModal({ ...soldModal, buyer_phone: e.target.value })} />
+              </Field>
+              <Field label="Buyer Aadhaar">
+                <input className="input-base" value={soldModal.buyer_aadhaar} onChange={(e) => setSoldModal({ ...soldModal, buyer_aadhaar: e.target.value })} />
+              </Field>
+            </div>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
               <button className="btn-ghost" type="button" onClick={() => setSoldModal(null)}>Cancel</button>
               <button className="btn-accent" type="submit">Mark Sold</button>

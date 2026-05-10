@@ -23,7 +23,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 from transactions.views import ExpenseViewSet, PurchaseViewSet, SaleViewSet
 from users.views import auth_status, login_user, logout_user, password_reset_confirm, password_reset_request
-from vehicles.views import VehicleViewSet, activity_logs, search_vehicle
+from vehicles.views import VehicleViewSet, activity_logs, public_rto_links, search_vehicle
 
 
 def health_check(_request):
@@ -40,6 +40,7 @@ urlpatterns = [
     path('api/health/', health_check),
     path('api/', include(router.urls)),
     path('api/search/', search_vehicle),
+    path('api/rto-links/', public_rto_links),
     path('api/activity/', activity_logs),
     path('api/auth/status/', auth_status),
     path('api/auth/login/', login_user),
